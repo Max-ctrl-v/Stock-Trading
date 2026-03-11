@@ -2,30 +2,17 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
-    },
-    {
       "src": "frontend/**",
       "use": "@vercel/static"
     }
   ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://stock-api-production-c167.up.railway.app/api/:path*"
+    }
+  ],
   "routes": [
-    {
-      "src": "/api/health",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/api/auth/(.*)",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
-    },
     {
       "src": "/(.*)",
       "dest": "/frontend/$1"
