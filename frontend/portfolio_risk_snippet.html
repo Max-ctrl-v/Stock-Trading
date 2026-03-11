@@ -1,0 +1,515 @@
+<!-- ============================================================ -->
+<!-- BLOCK 1: HTML TEMPLATE                                       -->
+<!-- Paste this inside your Portfolio section in index.html        -->
+<!-- ============================================================ -->
+
+<!-- Portfolio Analytics Section -->
+<div class="mt-6">
+  <h3 class="text-lg font-semibold text-white mb-4">Portfolio Analytics</h3>
+
+  <!-- Sub-tab pills -->
+  <div class="flex flex-wrap gap-2 mb-5">
+    <template x-for="tab in [
+      {id:'allocation',label:'Allocation'},{id:'correlation',label:'Correlation'},
+      {id:'beta',label:'Beta'},{id:'pnlHistory',label:'P&L History'},
+      {id:'dividends',label:'Dividends'},{id:'taxLots',label:'Tax Lots'},
+      {id:'aging',label:'Aging'},{id:'rebalance',label:'Rebalance'},
+      {id:'exposure',label:'Exposure'},{id:'pnlBreakdown',label:'P&L Breakdown'}
+    ]" :key="tab.id">
+      <button
+        @click="loadRiskData(tab.id)"
+        :class="riskTab === tab.id
+          ? 'bg-brand-500 text-white shadow-md'
+          : 'bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating'"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
+        x-text="tab.label"
+      ></button>
+    </template>
+  </div>
+
+  <!-- Loading spinner -->
+  <div x-show="riskLoading" class="flex justify-center py-12">
+    <svg class="animate-spin h-8 w-8 text-brand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+  </div>
+
+  <!-- ==================== ALLOCATION ==================== -->
+  <div x-show="riskTab === 'allocation' && !riskLoading && allocationData" class="rounded-xl bg-surface-raised shadow-card p-5">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="flex justify-center">
+        <canvas id="allocationCanvas" class="max-w-[300px] max-h-[300px]"></canvas>
+      </div>
+      <div>
+        <h4 class="text-sm font-semibold text-gray-300 mb-3">Sector Breakdown</h4>
+        <div class="space-y-2">
+          <template x-for="s in (allocationData?.sectors || [])" :key="s.sector">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-gray-400" x-text="s.sector"></span>
+              <div class="flex items-center gap-3">
+                <div class="w-24 h-2 rounded-full bg-surface-elevated overflow-hidden">
+                  <div class="h-full rounded-full bg-brand-400" :style="'width:' + s.pct + '%'"></div>
+                </div>
+                <span class="font-mono text-white w-12 text-right" x-text="s.pct.toFixed(1) + '%'"></span>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CORRELATION ==================== -->
+  <div x-show="riskTab === 'correlation' && !riskLoading && correlationData" class="rounded-xl bg-surface-raised shadow-card p-5 overflow-x-auto">
+    <table class="w-full text-xs">
+      <thead>
+        <tr>
+          <th class="p-2 text-left text-gray-400"></th>
+          <template x-for="t in (correlationData?.tickers || [])" :key="'ch-'+t">
+            <th class="p-2 text-center text-gray-400 font-mono" x-text="t"></th>
+          </template>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="(row, ri) in (correlationData?.matrix || [])" :key="'cr-'+ri">
+          <tr>
+            <td class="p-2 text-gray-400 font-mono" x-text="correlationData.tickers[ri]"></td>
+            <template x-for="(val, ci) in row" :key="'cc-'+ri+'-'+ci">
+              <td class="p-2 text-center font-mono text-white"
+                  :class="Math.abs(val) < 0.3 ? 'bg-green-900/40' : Math.abs(val) < 0.7 ? 'bg-yellow-900/40' : 'bg-red-900/40'"
+                  x-text="val.toFixed(2)"></td>
+            </template>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ==================== BETA ==================== -->
+  <div x-show="riskTab === 'beta' && !riskLoading && betaData" class="rounded-xl bg-surface-raised shadow-card p-5">
+    <div class="flex items-center gap-6 mb-5">
+      <div>
+        <p class="text-xs text-gray-400 uppercase tracking-wide">Portfolio Beta</p>
+        <p class="text-4xl font-bold font-mono"
+           :class="betaData?.portfolio_beta > 1 ? 'text-danger-400' : 'text-brand-400'"
+           x-text="betaData?.portfolio_beta?.toFixed(2)"></p>
+      </div>
+      <p class="text-xs text-gray-500">vs S&P 500. >1 = more volatile than market.</p>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-surface-floating">
+          <th class="py-2 text-left text-gray-400 font-medium">Ticker</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Beta</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Weight</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="b in (betaData?.holdings || [])" :key="'b-'+b.ticker">
+          <tr class="border-b border-surface-elevated">
+            <td class="py-2 font-mono text-white" x-text="b.ticker"></td>
+            <td class="py-2 text-right font-mono"
+                :class="b.beta > 1 ? 'text-danger-400' : 'text-brand-400'"
+                x-text="b.beta.toFixed(2)"></td>
+            <td class="py-2 text-right font-mono text-gray-300" x-text="b.weight.toFixed(1) + '%'"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ==================== P&L HISTORY ==================== -->
+  <div x-show="riskTab === 'pnlHistory' && !riskLoading && pnlHistoryData" class="rounded-xl bg-surface-raised shadow-card p-5">
+    <canvas id="pnlHistoryCanvas" class="w-full" style="height:300px"></canvas>
+  </div>
+
+  <!-- ==================== DIVIDENDS ==================== -->
+  <div x-show="riskTab === 'dividends' && !riskLoading && dividendData" class="rounded-xl bg-surface-raised shadow-card p-5 overflow-x-auto">
+    <div class="mb-3 flex items-center justify-between">
+      <h4 class="text-sm font-semibold text-gray-300">Dividend Summary</h4>
+      <span class="text-xs font-mono text-brand-400" x-text="'Est. Annual: $' + (dividendData?.total_annual || 0).toFixed(2)"></span>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-surface-floating">
+          <th class="py-2 text-left text-gray-400 font-medium">Ticker</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Annual Div</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Yield %</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Ex-Date</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Annual Income</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="d in (dividendData?.holdings || [])" :key="'d-'+d.ticker">
+          <tr class="border-b border-surface-elevated">
+            <td class="py-2 font-mono text-white" x-text="d.ticker"></td>
+            <td class="py-2 text-right font-mono text-gray-300" x-text="'$' + d.annual_dividend.toFixed(2)"></td>
+            <td class="py-2 text-right font-mono text-brand-400" x-text="d.yield_pct.toFixed(2) + '%'"></td>
+            <td class="py-2 text-right font-mono text-gray-400" x-text="d.ex_date || '—'"></td>
+            <td class="py-2 text-right font-mono text-white" x-text="'$' + d.annual_income.toFixed(2)"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ==================== TAX LOTS ==================== -->
+  <div x-show="riskTab === 'taxLots' && !riskLoading && taxLotData" class="rounded-xl bg-surface-raised shadow-card p-5 space-y-2">
+    <template x-for="group in (taxLotData?.groups || [])" :key="'tl-'+group.ticker">
+      <div class="rounded-lg bg-surface-elevated">
+        <button @click="expandedTaxLot = expandedTaxLot === group.ticker ? null : group.ticker"
+                class="w-full flex items-center justify-between p-3 text-sm transition-colors duration-150 hover:bg-surface-floating rounded-lg">
+          <span class="font-mono text-white font-semibold" x-text="group.ticker"></span>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-mono text-gray-400" x-text="group.lots.length + ' lot(s)'"></span>
+            <svg :class="expandedTaxLot === group.ticker ? 'rotate-180' : ''" class="w-4 h-4 text-gray-500 transition-transform duration-150" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
+        </button>
+        <div x-show="expandedTaxLot === group.ticker" class="px-3 pb-3">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="border-b border-surface-floating">
+                <th class="py-1.5 text-left text-gray-500">Date</th>
+                <th class="py-1.5 text-right text-gray-500">Shares</th>
+                <th class="py-1.5 text-right text-gray-500">Cost Basis</th>
+                <th class="py-1.5 text-right text-gray-500">Current</th>
+                <th class="py-1.5 text-right text-gray-500">Gain/Loss</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(lot, li) in group.lots" :key="'lot-'+li">
+                <tr class="border-b border-surface-elevated/50">
+                  <td class="py-1.5 font-mono text-gray-400" x-text="lot.date"></td>
+                  <td class="py-1.5 text-right font-mono text-gray-300" x-text="lot.shares"></td>
+                  <td class="py-1.5 text-right font-mono text-gray-300" x-text="'$' + lot.cost_basis.toFixed(2)"></td>
+                  <td class="py-1.5 text-right font-mono text-white" x-text="'$' + lot.current_value.toFixed(2)"></td>
+                  <td class="py-1.5 text-right font-mono"
+                      :class="lot.gain >= 0 ? 'text-brand-400' : 'text-danger-400'"
+                      x-text="(lot.gain >= 0 ? '+' : '') + '$' + lot.gain.toFixed(2)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- ==================== AGING ==================== -->
+  <div x-show="riskTab === 'aging' && !riskLoading && agingData" class="rounded-xl bg-surface-raised shadow-card p-5 overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-surface-floating">
+          <th class="py-2 text-left text-gray-400 font-medium">Ticker</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Days Held</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Weeks</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="a in (agingData?.holdings || [])" :key="'a-'+a.ticker">
+          <tr class="border-b border-surface-elevated">
+            <td class="py-2 font-mono text-white" x-text="a.ticker"></td>
+            <td class="py-2 text-right font-mono"
+                :class="a.days < 30 ? 'text-brand-400' : a.days < 90 ? 'text-yellow-400' : 'text-danger-400'"
+                x-text="a.days"></td>
+            <td class="py-2 text-right font-mono text-gray-300" x-text="a.weeks"></td>
+            <td class="py-2 text-right">
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium"
+                    :class="a.days < 30 ? 'bg-green-900/40 text-brand-400' : a.days < 90 ? 'bg-yellow-900/40 text-yellow-400' : 'bg-red-900/40 text-danger-400'"
+                    x-text="a.days < 30 ? 'Fresh' : a.days < 90 ? 'Maturing' : 'Aged'"></span>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ==================== REBALANCE ==================== -->
+  <div x-show="riskTab === 'rebalance' && !riskLoading && rebalanceData" class="rounded-xl bg-surface-raised shadow-card p-5 overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-surface-floating">
+          <th class="py-2 text-left text-gray-400 font-medium">Ticker</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Current %</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Target %</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Diff</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Action</th>
+          <th class="py-2 text-right text-gray-400 font-medium">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="r in (rebalanceData?.holdings || [])" :key="'r-'+r.ticker">
+          <tr class="border-b border-surface-elevated">
+            <td class="py-2 font-mono text-white" x-text="r.ticker"></td>
+            <td class="py-2 text-right font-mono text-gray-300" x-text="r.current_pct.toFixed(1) + '%'"></td>
+            <td class="py-2 text-right font-mono text-gray-300" x-text="r.target_pct.toFixed(1) + '%'"></td>
+            <td class="py-2 text-right font-mono"
+                :class="r.diff >= 0 ? 'text-brand-400' : 'text-danger-400'"
+                x-text="(r.diff >= 0 ? '+' : '') + r.diff.toFixed(1) + '%'"></td>
+            <td class="py-2 text-right">
+              <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                    :class="r.action === 'BUY' ? 'bg-green-900/40 text-brand-400' : r.action === 'SELL' ? 'bg-red-900/40 text-danger-400' : 'bg-surface-floating text-gray-500'"
+                    x-text="r.action"></span>
+            </td>
+            <td class="py-2 text-right font-mono text-white" x-text="'$' + Math.abs(r.amount).toFixed(2)"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ==================== EXPOSURE ==================== -->
+  <div x-show="riskTab === 'exposure' && !riskLoading && exposureData" class="rounded-xl bg-surface-raised shadow-card p-5 space-y-3">
+    <template x-for="e in (exposureData?.holdings || [])" :key="'e-'+e.ticker">
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-sm font-mono text-white" x-text="e.ticker"></span>
+          <span class="text-xs font-mono"
+                :class="e.pct > 20 ? 'text-danger-400' : 'text-gray-400'"
+                x-text="e.pct.toFixed(1) + '%'"></span>
+        </div>
+        <div class="w-full h-3 rounded-full bg-surface-elevated overflow-hidden">
+          <div class="h-full rounded-full transition-[width] duration-300"
+               :class="e.pct > 20 ? 'bg-danger-500' : 'bg-brand-500'"
+               :style="'width:' + Math.min(e.pct, 100) + '%'"></div>
+        </div>
+        <p x-show="e.pct > 20" class="text-[10px] text-danger-400 mt-0.5">Concentration risk: exceeds 20% threshold</p>
+      </div>
+    </template>
+  </div>
+
+  <!-- ==================== P&L BREAKDOWN ==================== -->
+  <div x-show="riskTab === 'pnlBreakdown' && !riskLoading && pnlBreakdownData" class="rounded-xl bg-surface-raised shadow-card p-5">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Unrealized -->
+      <div>
+        <h4 class="text-sm font-semibold text-gray-300 mb-3">Unrealized P&L</h4>
+        <div class="space-y-2">
+          <template x-for="u in (pnlBreakdownData?.unrealized || [])" :key="'u-'+u.ticker">
+            <div class="flex items-center justify-between rounded-lg bg-surface-elevated px-3 py-2">
+              <span class="font-mono text-sm text-white" x-text="u.ticker"></span>
+              <div class="text-right">
+                <p class="font-mono text-sm"
+                   :class="u.pnl >= 0 ? 'text-brand-400' : 'text-danger-400'"
+                   x-text="(u.pnl >= 0 ? '+' : '') + '$' + u.pnl.toFixed(2)"></p>
+                <p class="font-mono text-[10px]"
+                   :class="u.pnl_pct >= 0 ? 'text-brand-500/70' : 'text-danger-500/70'"
+                   x-text="(u.pnl_pct >= 0 ? '+' : '') + u.pnl_pct.toFixed(2) + '%'"></p>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+      <!-- Realized -->
+      <div>
+        <h4 class="text-sm font-semibold text-gray-300 mb-3">Realized P&L</h4>
+        <div class="rounded-lg bg-surface-elevated px-4 py-4 text-center">
+          <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Realized</p>
+          <p class="text-3xl font-bold font-mono"
+             :class="(pnlBreakdownData?.realized_total || 0) >= 0 ? 'text-brand-400' : 'text-danger-400'"
+             x-text="((pnlBreakdownData?.realized_total || 0) >= 0 ? '+' : '') + '$' + (pnlBreakdownData?.realized_total || 0).toFixed(2)"></p>
+        </div>
+        <div class="mt-3 space-y-2">
+          <template x-for="r in (pnlBreakdownData?.realized || [])" :key="'rl-'+r.ticker">
+            <div class="flex items-center justify-between rounded-lg bg-surface-elevated px-3 py-2">
+              <span class="font-mono text-sm text-white" x-text="r.ticker"></span>
+              <span class="font-mono text-sm"
+                    :class="r.pnl >= 0 ? 'text-brand-400' : 'text-danger-400'"
+                    x-text="(r.pnl >= 0 ? '+' : '') + '$' + r.pnl.toFixed(2)"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div x-show="!riskLoading && !allocationData && riskTab === 'allocation'" class="text-center py-12 text-gray-500 text-sm">
+    No portfolio data. Add holdings to see analytics.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- END BLOCK 1: HTML TEMPLATE                                    -->
+<!-- ============================================================ -->
+
+
+<!-- ============================================================ -->
+<!-- BLOCK 2: JAVASCRIPT METHODS                                   -->
+<!-- Add these to your Alpine.js x-data object                     -->
+<!-- ============================================================ -->
+
+<script>
+// --- STATE (merge into your Alpine x-data) ---
+/*
+riskTab: 'allocation',
+riskLoading: false,
+allocationData: null,
+correlationData: null,
+betaData: null,
+pnlHistoryData: null,
+dividendData: null,
+taxLotData: null,
+agingData: null,
+rebalanceData: null,
+exposureData: null,
+pnlBreakdownData: null,
+_allocationChart: null,
+_pnlHistoryChart: null,
+expandedTaxLot: null,
+*/
+
+// --- METHODS (merge into your Alpine x-data) ---
+
+async loadRiskData(tab) {
+  this.riskTab = tab;
+  this.riskLoading = true;
+  const endpointMap = {
+    allocation: 'allocation',
+    correlation: 'correlation',
+    beta: 'beta',
+    pnlHistory: 'pnl-history',
+    dividends: 'dividends',
+    taxLots: 'tax-lots',
+    aging: 'aging',
+    rebalance: 'rebalance',
+    exposure: 'exposure',
+    pnlBreakdown: 'pnl-breakdown',
+  };
+  const dataKeyMap = {
+    allocation: 'allocationData',
+    correlation: 'correlationData',
+    beta: 'betaData',
+    pnlHistory: 'pnlHistoryData',
+    dividends: 'dividendData',
+    taxLots: 'taxLotData',
+    aging: 'agingData',
+    rebalance: 'rebalanceData',
+    exposure: 'exposureData',
+    pnlBreakdown: 'pnlBreakdownData',
+  };
+  try {
+    const res = await fetch(`/api/portfolio/analytics/${endpointMap[tab]}`);
+    if (!res.ok) throw new Error('Failed to load');
+    const data = await res.json();
+    this[dataKeyMap[tab]] = data;
+    await this.$nextTick();
+    if (tab === 'allocation') this.renderAllocationChart();
+    if (tab === 'pnlHistory') this.renderPnlHistoryChart();
+  } catch (e) {
+    console.error('Risk data error:', e);
+    this[dataKeyMap[tab]] = null;
+  } finally {
+    this.riskLoading = false;
+  }
+},
+
+renderAllocationChart() {
+  if (this._allocationChart) { this._allocationChart.destroy(); this._allocationChart = null; }
+  const canvas = document.getElementById('allocationCanvas');
+  if (!canvas || !this.allocationData?.holdings) return;
+  const labels = this.allocationData.holdings.map(h => h.ticker);
+  const values = this.allocationData.holdings.map(h => h.value);
+  const colors = [
+    '#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6',
+    '#ec4899','#14b8a6','#f97316','#6366f1','#06b6d4',
+    '#84cc16','#e11d48','#0ea5e9','#a855f7','#10b981'
+  ];
+  this._allocationChart = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors.slice(0, labels.length),
+        borderColor: '#0a0f1a',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: '#9ca3af', font: { family: 'Inter', size: 11 }, padding: 12, usePointStyle: true, pointStyleWidth: 8 }
+        },
+        tooltip: {
+          backgroundColor: '#1a2234',
+          titleColor: '#fff',
+          bodyColor: '#d1d5db',
+          bodyFont: { family: 'JetBrains Mono' },
+          callbacks: {
+            label: ctx => ` ${ctx.label}: $${ctx.raw.toLocaleString(undefined, {minimumFractionDigits:2})} (${((ctx.raw / values.reduce((a,b)=>a+b,0)) * 100).toFixed(1)}%)`
+          }
+        }
+      }
+    }
+  });
+},
+
+renderPnlHistoryChart() {
+  if (this._pnlHistoryChart) { this._pnlHistoryChart.destroy(); this._pnlHistoryChart = null; }
+  const canvas = document.getElementById('pnlHistoryCanvas');
+  if (!canvas || !this.pnlHistoryData?.dates) return;
+  const dates = this.pnlHistoryData.dates;
+  const values = this.pnlHistoryData.values;
+  this._pnlHistoryChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [{
+        label: 'Cumulative P&L',
+        data: values,
+        borderColor: '#22c55e',
+        backgroundColor: 'rgba(34,197,94,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHitRadius: 8,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      scales: {
+        x: {
+          ticks: { color: '#6b7280', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        },
+        y: {
+          ticks: {
+            color: '#6b7280',
+            font: { family: 'JetBrains Mono', size: 10 },
+            callback: v => (v >= 0 ? '+$' : '-$') + Math.abs(v).toLocaleString()
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a2234',
+          titleColor: '#fff',
+          bodyColor: '#d1d5db',
+          bodyFont: { family: 'JetBrains Mono' },
+          callbacks: {
+            label: ctx => ` P&L: ${ctx.raw >= 0 ? '+' : ''}$${ctx.raw.toFixed(2)}`
+          }
+        }
+      }
+    }
+  });
+}
+</script>
+
+<!-- ============================================================ -->
+<!-- END BLOCK 2: JAVASCRIPT METHODS                               -->
+<!-- ============================================================ -->

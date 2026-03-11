@@ -1,0 +1,35 @@
+# API keys and secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+venv/
+.venv/
+
+# Data
+data/*.json
+
+# Node
+node_modules/
+package-lock.json
+
+# Screenshots
+temporary screenshots/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

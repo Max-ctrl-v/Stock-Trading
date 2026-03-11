@@ -1,0 +1,2710 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Analysis Tool</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac',
+              400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d',
+              800: '#166534', 900: '#14532d',
+            },
+            surface: {
+              base: 'var(--surface-base)',
+              raised: 'var(--surface-raised)',
+              elevated: 'var(--surface-elevated)',
+              floating: 'var(--surface-floating)',
+            },
+            danger: { 400: '#f87171', 500: '#ef4444', 600: '#dc2626' },
+            success: { 400: '#4ade80', 500: '#22c55e', 600: '#16a34a' },
+            warn: { 400: '#fbbf24', 500: '#f59e0b' },
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Theme CSS Custom Properties */
+    :root {
+      --surface-base: #f8fafc;
+      --surface-raised: #ffffff;
+      --surface-elevated: #f1f5f9;
+      --surface-floating: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --border-color: #e2e8f0;
+    }
+    .dark {
+      --surface-base: #0a0f1a;
+      --surface-raised: #111827;
+      --surface-elevated: #1a2234;
+      --surface-floating: #243044;
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      --border-color: rgba(55,65,81,0.5);
+    }
+    body { background: var(--surface-base); color: var(--text-primary); }
+    .shadow-card {
+      box-shadow: 0 1px 1px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.3), 0 16px 32px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.04) inset;
+    }
+    html:not(.dark) .shadow-card {
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
+    }
+    .shadow-glow-green { box-shadow: 0 0 20px rgba(34,197,94,0.15), 0 0 60px rgba(34,197,94,0.05); }
+    .shadow-glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.15), 0 0 60px rgba(239,68,68,0.05); }
+    .signal-buy { background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.04)); border: 1px solid rgba(34,197,94,0.3); }
+    .signal-sell { background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(239,68,68,0.04)); border: 1px solid rgba(239,68,68,0.3); }
+    .signal-hold { background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.04)); border: 1px solid rgba(251,191,36,0.3); }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .animate-pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+    [x-cloak] { display: none !important; }
+    /* Light mode text overrides */
+    html:not(.dark) .text-white { color: var(--text-primary) !important; }
+    html:not(.dark) .text-gray-200 { color: #334155 !important; }
+    html:not(.dark) .text-gray-300 { color: #475569 !important; }
+    html:not(.dark) .text-gray-400 { color: #64748b !important; }
+    html:not(.dark) .text-gray-500 { color: #94a3b8 !important; }
+    html:not(.dark) .text-gray-600 { color: #475569 !important; }
+    html:not(.dark) .border-gray-700 { border-color: #e2e8f0 !important; }
+    html:not(.dark) .border-gray-700\/50 { border-color: rgba(226,232,240,0.5) !important; }
+    html:not(.dark) .border-gray-800\/50 { border-color: rgba(226,232,240,0.5) !important; }
+    html:not(.dark) .placeholder-gray-500::placeholder { color: #94a3b8 !important; }
+    html:not(.dark) .bg-gray-700 { background-color: #e2e8f0 !important; }
+    html:not(.dark) input, html:not(.dark) select { color: var(--text-primary); }
+    /* Mobile nav */
+    @media (max-width: 767px) {
+      .nav-mobile-menu { display: none; flex-direction: column; gap: 0.25rem; position: absolute; top: 100%; right: 0; background: var(--surface-raised); border-radius: 0.75rem; padding: 0.5rem; min-width: 160px; z-index: 50; }
+      .nav-mobile-menu.open { display: flex; }
+      .nav-mobile-menu button { width: 100%; text-align: left; }
+    }
+    @media (min-width: 768px) {
+      .hamburger-btn { display: none !important; }
+      .nav-mobile-menu { display: flex !important; flex-direction: row; }
+    }
+  </style>
+  <script>
+    // Auth: override fetch to auto-attach JWT token
+    const _origFetch = window.fetch;
+    window.fetch = function(url, opts = {}) {
+      const token = localStorage.getItem('auth_token');
+      if (token && typeof url === 'string' && url.startsWith('/api/') && !url.includes('/api/auth/login')) {
+        opts.headers = opts.headers || {};
+        if (opts.headers instanceof Headers) {
+          opts.headers.set('Authorization', 'Bearer ' + token);
+        } else {
+          opts.headers['Authorization'] = 'Bearer ' + token;
+        }
+      }
+      return _origFetch.call(this, url, opts).then(resp => {
+        // If 401 and we had a token, it expired — force logout (but don't loop if no token)
+        if (resp.status === 401 && token && typeof url === 'string' && !url.includes('/api/auth/login')) {
+          localStorage.removeItem('auth_token');
+          window.location.reload();
+        }
+        return resp;
+      });
+    };
+  </script>
+</head>
+<body class="font-sans text-gray-200 min-h-screen">
+
+  <!-- ===== LOGIN SCREEN ===== -->
+  <div x-data="loginGate()" x-show="!authenticated" x-cloak
+       class="fixed inset-0 z-[100] flex items-center justify-center"
+       style="background: linear-gradient(135deg, #0a0f1a 0%, #111827 50%, #0d1520 100%);">
+    <div class="w-full max-w-sm px-6">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-white tracking-tight" style="letter-spacing:-0.03em">Stock Analysis</h1>
+        <p class="text-sm text-gray-500 mt-2">Sign in to continue</p>
+      </div>
+      <form @submit.prevent="login()" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1.5">Email</label>
+          <input type="email" x-model="email" required autocomplete="email"
+                 class="w-full px-4 py-3 rounded-xl bg-surface-raised border border-gray-700/50 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50"
+                 placeholder="you@example.com">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-400 mb-1.5">Password</label>
+          <input type="password" x-model="password" required autocomplete="current-password"
+                 class="w-full px-4 py-3 rounded-xl bg-surface-raised border border-gray-700/50 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50"
+                 placeholder="Enter password">
+        </div>
+        <p x-show="error" x-text="error" class="text-danger-400 text-xs"></p>
+        <button type="submit" :disabled="loggingIn"
+                class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-[0.98] text-white font-semibold text-sm transition-transform duration-150 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-brand-400/50">
+          <span x-show="!loggingIn">Sign In</span>
+          <span x-show="loggingIn">Signing in...</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== APP ROOT ===== -->
+  <div x-data="app()" x-init="init()" @keydown.window="handleKeydown($event)" class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- ===== HEADER ===== -->
+    <header class="flex items-center justify-between mb-8 relative">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-white" style="letter-spacing:-0.03em">
+          Stock Analysis
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">Short-term signals + AI analysis for active traders</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Theme toggle -->
+        <button @click="toggleTheme()"
+                class="px-2.5 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-sm focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95"
+                :title="darkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+          <span x-show="darkMode">&#9788;</span>
+          <span x-show="!darkMode">&#9790;</span>
+        </button>
+        <!-- Settings button -->
+        <button @click="showSettings = !showSettings"
+                class="px-3 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-sm font-medium focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95">
+          Settings
+        </button>
+        <!-- Logout button -->
+        <button @click="localStorage.removeItem('auth_token'); window.location.reload()"
+                class="px-3 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-danger-400 hover:bg-surface-floating transition-colors text-sm font-medium focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95"
+                title="Sign out">
+          Logout
+        </button>
+        <!-- Hamburger for mobile -->
+        <button @click="mobileNav = !mobileNav" class="hamburger-btn px-2.5 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-sm focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95">
+          &#9776;
+        </button>
+        <!-- Nav buttons -->
+        <div class="nav-mobile-menu" :class="mobileNav && 'open'" @click="mobileNav = false">
+          <template x-for="tab in [
+            {id:'dashboard',label:'Dashboard'},
+            {id:'portfolio',label:'Portfolio'},
+            {id:'picks',label:'Picks'},
+            {id:'analysis',label:'Analysis'},
+            {id:'watchlist',label:'Watchlist'},
+          ]" :key="tab.id">
+            <button @click="activeTab = tab.id; if(tab.id==='picks'){loadRecommendations();loadSellSignals()}"
+                    class="px-3 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-sm font-medium focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95"
+                    :class="activeTab === tab.id && 'bg-brand-700 text-white'"
+                    x-text="tab.label"></button>
+          </template>
+          <!-- More dropdown -->
+          <div x-data="{ moreOpen: false }" class="relative">
+            <button @click.stop="moreOpen = !moreOpen"
+                    class="px-3 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-sm font-medium focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95"
+                    :class="['screener','journal','market','trading','research'].includes(activeTab) && 'bg-brand-700 text-white'">
+              More <span class="text-[10px]">&#9660;</span>
+            </button>
+            <div x-show="moreOpen" @click.outside="moreOpen = false" x-transition
+                 class="absolute right-0 top-full mt-1 py-1 rounded-xl bg-surface-floating shadow-card z-50 min-w-[140px]">
+              <template x-for="tab in [
+                {id:'screener',label:'Screener'},
+                {id:'journal',label:'Journal'},
+                {id:'market',label:'Market'},
+                {id:'trading',label:'Trading'},
+                {id:'research',label:'Research'},
+              ]" :key="tab.id">
+                <button @click="activeTab = tab.id; moreOpen = false"
+                        class="w-full text-left px-4 py-2 text-sm hover:bg-surface-elevated transition-colors"
+                        :class="activeTab === tab.id ? 'text-brand-400 font-semibold' : 'text-gray-300'"
+                        x-text="tab.label"></button>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== SETTINGS PANEL ===== -->
+    <div x-show="showSettings" x-transition class="mb-6 p-4 rounded-xl bg-surface-raised shadow-card">
+      <h3 class="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">Settings</h3>
+      <div class="flex gap-4 flex-wrap">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Account Size ($)</label>
+          <input type="number" x-model.number="settings.account_size"
+                 @change="saveSettings()"
+                 class="w-40 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Risk per Trade (%)</label>
+          <input type="number" step="0.5" x-model.number="settings.risk_pct"
+                 @change="saveSettings()"
+                 class="w-28 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none">
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SEARCH BAR (analysis/watchlist only) ===== -->
+    <div x-show="activeTab === 'analysis' || activeTab === 'watchlist'" class="mb-6">
+      <div class="flex gap-2">
+        <input type="text" x-model="searchTicker" placeholder="Enter ticker (e.g. AAPL, MSFT, SPY)"
+               @keydown.enter="analyzeStock()"
+               class="flex-1 px-4 py-3 rounded-xl bg-surface-raised border border-gray-700 text-white placeholder-gray-500 text-sm font-medium focus:border-brand-500 focus:outline-none shadow-card">
+        <button @click="analyzeStock()"
+                :disabled="loading"
+                class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+          <span x-show="!loading">Analyze</span>
+          <span x-show="loading" class="flex items-center gap-2">
+            <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+            Loading
+          </span>
+        </button>
+      </div>
+      <p x-show="error" x-text="error" class="mt-2 text-sm text-danger-400"></p>
+    </div>
+
+    <!-- ===== ALERTS BAR ===== -->
+    <div x-show="triggeredAlerts.length > 0" class="mb-4 space-y-2">
+      <template x-for="alert in triggeredAlerts" :key="alert.id">
+        <div class="p-3 rounded-xl bg-warn-500/10 border border-warn-500/30 flex items-center justify-between">
+          <p class="text-sm text-warn-400 font-medium">
+            <span class="font-bold" x-text="alert.ticker"></span> hit
+            <span x-text="alert.condition"></span> target of
+            <span class="font-mono" x-text="'$' + alert.target_price.toFixed(2)"></span>
+          </p>
+          <button @click="triggeredAlerts = triggeredAlerts.filter(a => a.id !== alert.id)" class="text-gray-500 hover:text-white text-xs">Dismiss</button>
+        </div>
+      </template>
+    </div>
+
+    <!-- ===== DASHBOARD TAB ===== -->
+    <template x-if="activeTab === 'dashboard'">
+      <div>
+        <!-- Portfolio Summary Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">Portfolio Value</p>
+            <p class="text-xl font-bold font-mono text-white" x-text="portfolio ? '€' + portfolio.total_value.toLocaleString(undefined, {minimumFractionDigits:2}) : '€0.00'"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">Total P&L</p>
+            <p class="text-xl font-bold font-mono" :class="portfolio && portfolio.total_pnl >= 0 ? 'text-success-400' : 'text-danger-400'"
+               x-text="portfolio ? (portfolio.total_pnl >= 0 ? '+€' : '-€') + Math.abs(portfolio.total_pnl).toFixed(2) : '€0.00'"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">Active Alerts</p>
+            <p class="text-xl font-bold font-mono text-warn-400" x-text="alerts.length"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">Watchlist</p>
+            <p class="text-xl font-bold font-mono text-white" x-text="watchlist.length + ' tickers'"></p>
+          </div>
+        </div>
+
+        <!-- Top Movers from Watchlist -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Top Movers (Watchlist)</h3>
+          <div x-show="watchlist.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <template x-for="item in [...watchlist].sort((a,b) => Math.abs(b.change_pct) - Math.abs(a.change_pct)).slice(0,6)" :key="item.ticker">
+              <div class="p-3 rounded-lg bg-surface-elevated flex items-center justify-between cursor-pointer hover:bg-surface-floating transition-colors"
+                   @click="searchTicker = item.ticker; activeTab = 'analysis'; analyzeStock()">
+                <div>
+                  <p class="font-semibold text-sm text-brand-400" x-text="item.ticker"></p>
+                  <p class="text-xs text-gray-500" x-text="item.name || ''"></p>
+                </div>
+                <div class="text-right">
+                  <p class="font-mono text-sm text-white" x-text="item.price ? '$' + item.price.toFixed(2) : '—'"></p>
+                  <p class="font-mono text-xs" :class="item.change_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                     x-text="(item.change_pct >= 0 ? '+' : '') + (item.change_pct || 0).toFixed(2) + '%'"></p>
+                </div>
+              </div>
+            </template>
+          </div>
+          <p x-show="watchlist.length === 0" class="text-sm text-gray-500">Watchlist is empty. Add tickers to see movers.</p>
+        </div>
+
+        <!-- Holdings Quick View -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Holdings</h3>
+            <button @click="activeTab = 'portfolio'" class="text-xs text-brand-400 hover:text-brand-300">View All &rarr;</button>
+          </div>
+          <div x-show="portfolio && portfolio.groups && portfolio.groups.length > 0" class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-gray-700/50">
+                  <th class="text-left p-2 text-xs text-gray-500 font-semibold">Ticker</th>
+                  <th class="text-right p-2 text-xs text-gray-500 font-semibold">Value</th>
+                  <th class="text-right p-2 text-xs text-gray-500 font-semibold">P&L</th>
+                  <th class="text-right p-2 text-xs text-gray-500 font-semibold">P&L%</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="g in (portfolio ? portfolio.groups.slice(0,8) : [])" :key="'dg-'+g.ticker">
+                  <tr class="border-b border-gray-800/50">
+                    <td class="p-2 font-semibold text-brand-400 cursor-pointer" @click="openStockModal(g.ticker)" x-text="g.ticker"></td>
+                    <td class="p-2 text-right font-mono text-white" x-text="'€' + g.total_value.toFixed(2)"></td>
+                    <td class="p-2 text-right font-mono" :class="g.pnl >= 0 ? 'text-success-400' : 'text-danger-400'" x-text="(g.pnl >= 0 ? '+€' : '-€') + Math.abs(g.pnl).toFixed(2)"></td>
+                    <td class="p-2 text-right font-mono" :class="g.pnl_pct >= 0 ? 'text-success-400' : 'text-danger-400'" x-text="(g.pnl_pct >= 0 ? '+' : '') + g.pnl_pct.toFixed(2) + '%'"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          <p x-show="!portfolio || !portfolio.groups || portfolio.groups.length === 0" class="text-sm text-gray-500">No holdings yet. Add some in the Portfolio tab.</p>
+        </div>
+
+        <!-- Triggered Alerts on Dashboard -->
+        <div x-show="triggeredAlerts.length > 0" class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <h3 class="text-sm font-semibold text-warn-400 uppercase tracking-wide mb-3">Triggered Alerts</h3>
+          <div class="space-y-2">
+            <template x-for="alert in triggeredAlerts" :key="alert.id">
+              <div class="p-3 rounded-lg bg-warn-500/10 border border-warn-500/30 flex items-center justify-between">
+                <p class="text-sm text-warn-400">
+                  <span class="font-bold" x-text="alert.ticker"></span> hit <span x-text="alert.condition"></span> target of <span class="font-mono" x-text="'$' + alert.target_price.toFixed(2)"></span>
+                </p>
+                <button @click="triggeredAlerts = triggeredAlerts.filter(a => a.id !== alert.id)" class="text-gray-500 hover:text-white text-xs">Dismiss</button>
+              </div>
+            </template>
+          </div>
+        </div>
+
+      </div>
+    </template>
+
+    <!-- ===== ANALYSIS TAB ===== -->
+    <template x-if="activeTab === 'analysis' && data">
+      <div>
+        <!-- Quote Header -->
+        <div class="flex items-center gap-4 mb-6 p-4 rounded-xl bg-surface-raised shadow-card">
+          <div>
+            <h2 class="text-xl font-bold text-white" x-text="data.quote.ticker"></h2>
+            <p class="text-sm text-gray-400" x-text="data.quote.name"></p>
+          </div>
+          <div class="ml-auto text-right">
+            <p class="text-2xl font-bold font-mono" :class="data.quote.change >= 0 ? 'text-success-400' : 'text-danger-400'"
+               x-text="'$' + data.quote.price.toFixed(2)"></p>
+            <p class="text-sm font-mono" :class="data.quote.change >= 0 ? 'text-success-500' : 'text-danger-500'"
+               x-text="(data.quote.change >= 0 ? '+' : '') + data.quote.change.toFixed(2) + ' (' + data.quote.change_pct.toFixed(2) + '%)'"></p>
+          </div>
+        </div>
+
+        <!-- Signal Card -->
+        <div class="mb-6 p-5 rounded-xl shadow-card"
+             :class="data.signal.direction === 'BUY' ? 'signal-buy shadow-glow-green' : data.signal.direction === 'SELL' ? 'signal-sell shadow-glow-red' : 'signal-hold'">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <span class="w-3 h-3 rounded-full animate-pulse-dot"
+                    :class="data.signal.direction === 'BUY' ? 'bg-success-400' : data.signal.direction === 'SELL' ? 'bg-danger-400' : 'bg-warn-400'"></span>
+              <span class="text-2xl font-bold tracking-tight"
+                    :class="data.signal.direction === 'BUY' ? 'text-success-400' : data.signal.direction === 'SELL' ? 'text-danger-400' : 'text-warn-400'"
+                    x-text="data.signal.direction" style="letter-spacing:-0.03em"></span>
+              <span class="text-sm text-gray-400">Signal</span>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-gray-400">Confidence</p>
+              <p class="text-lg font-bold font-mono text-white" x-text="data.signal.confidence.toFixed(0) + '%'"></p>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p class="text-gray-500 text-xs mb-1">Entry</p>
+              <p class="font-mono font-semibold text-white" x-text="'$' + data.signal.entry_price.toFixed(2)"></p>
+            </div>
+            <div>
+              <p class="text-gray-500 text-xs mb-1">Stop Loss</p>
+              <p class="font-mono font-semibold text-danger-400" x-text="'$' + data.signal.stop_loss.toFixed(2)"></p>
+            </div>
+            <div>
+              <p class="text-gray-500 text-xs mb-1">Target 1</p>
+              <p class="font-mono font-semibold text-success-400" x-text="'$' + data.signal.take_profit_1.toFixed(2)"></p>
+            </div>
+            <div>
+              <p class="text-gray-500 text-xs mb-1">Target 2</p>
+              <p class="font-mono font-semibold text-success-400" x-text="'$' + data.signal.take_profit_2.toFixed(2)"></p>
+            </div>
+          </div>
+          <!-- Position sizing -->
+          <div class="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p class="text-gray-500 text-xs mb-1">Shares to Buy</p>
+              <p class="font-mono font-bold text-white text-lg" x-text="data.position.shares"></p>
+            </div>
+            <div>
+              <p class="text-gray-500 text-xs mb-1">Dollar Amount</p>
+              <p class="font-mono font-semibold text-white" x-text="'$' + data.position.dollar_amount.toLocaleString()"></p>
+            </div>
+            <div>
+              <p class="text-gray-500 text-xs mb-1">Risk Amount</p>
+              <p class="font-mono font-semibold text-danger-400" x-text="'$' + data.position.risk_amount.toFixed(2)"></p>
+            </div>
+            <div>
+              <p class="text-gray-500 text-xs mb-1">Risk/Reward</p>
+              <p class="font-mono font-semibold text-white" x-text="'1:' + data.signal.risk_reward.toFixed(1)"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Analysis -->
+        <template x-if="data.ai_analysis">
+          <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">AI Analysis</h3>
+            <p class="text-sm text-gray-200 leading-relaxed mb-3" x-text="data.ai_analysis.narrative"></p>
+            <div class="flex gap-2 items-center mb-3">
+              <span class="text-xs text-gray-500">Conviction:</span>
+              <div class="flex gap-0.5">
+                <template x-for="i in 10">
+                  <span class="w-5 h-2 rounded-sm" :class="i <= data.ai_analysis.conviction ? 'bg-brand-500' : 'bg-gray-700'"></span>
+                </template>
+              </div>
+              <span class="text-xs font-mono text-gray-400" x-text="data.ai_analysis.conviction + '/10'"></span>
+              <span class="text-xs text-gray-500 ml-2" x-text="data.ai_analysis.timeframe"></span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div x-show="data.ai_analysis.catalysts.length">
+                <p class="text-success-500 font-semibold mb-1">Catalysts</p>
+                <template x-for="c in data.ai_analysis.catalysts">
+                  <p class="text-gray-300 pl-2 border-l-2 border-success-700 mb-1" x-text="c"></p>
+                </template>
+              </div>
+              <div x-show="data.ai_analysis.risks.length">
+                <p class="text-danger-500 font-semibold mb-1">Risks</p>
+                <template x-for="r in data.ai_analysis.risks">
+                  <p class="text-gray-300 pl-2 border-l-2 border-danger-700 mb-1" x-text="r"></p>
+                </template>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Chart -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Price Chart</h3>
+            <div class="flex gap-1">
+              <template x-for="tf in ['1D','1W','1M','3M','6M','1Y']">
+                <button @click="fetchChartData(tf)"
+                        class="px-2.5 py-1 rounded text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
+                        :class="chartTimeframe === tf ? 'bg-brand-600 text-white' : 'bg-surface-elevated text-gray-400 hover:text-white'"
+                        x-text="tf"></button>
+              </template>
+            </div>
+          </div>
+          <div class="relative" style="height:400px">
+            <canvas id="priceCanvas"></canvas>
+          </div>
+          <div class="relative mt-2" style="height:100px">
+            <canvas id="volumeCanvas"></canvas>
+          </div>
+          <div class="relative mt-2" style="height:150px">
+            <canvas id="indicatorCanvas"></canvas>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button @click="chartIndicator = 'RSI'; fetchChartData(chartTimeframe)"
+                    class="px-3 py-1.5 rounded text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
+                    :class="chartIndicator === 'RSI' ? 'bg-brand-600 text-white' : 'bg-surface-elevated text-gray-400 hover:text-white'">
+              RSI
+            </button>
+            <button @click="chartIndicator = 'MACD'; fetchChartData(chartTimeframe)"
+                    class="px-3 py-1.5 rounded text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
+                    :class="chartIndicator === 'MACD' ? 'bg-brand-600 text-white' : 'bg-surface-elevated text-gray-400 hover:text-white'">
+              MACD
+            </button>
+          </div>
+        </div>
+
+        <!-- Technical Indicators -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">RSI (14)</p>
+            <p class="text-xl font-bold font-mono"
+               :class="data.indicators.rsi < 35 ? 'text-success-400' : data.indicators.rsi > 65 ? 'text-danger-400' : 'text-white'"
+               x-text="data.indicators.rsi ? data.indicators.rsi.toFixed(1) : 'N/A'"></p>
+            <p class="text-xs mt-1"
+               :class="data.indicators.rsi < 35 ? 'text-success-500' : data.indicators.rsi > 65 ? 'text-danger-500' : 'text-gray-500'"
+               x-text="data.indicators.rsi < 35 ? 'Oversold' : data.indicators.rsi > 65 ? 'Overbought' : 'Neutral'"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">MACD</p>
+            <p class="text-xl font-bold font-mono"
+               :class="data.indicators.macd_histogram > 0 ? 'text-success-400' : 'text-danger-400'"
+               x-text="data.indicators.macd_histogram ? data.indicators.macd_histogram.toFixed(4) : 'N/A'"></p>
+            <p class="text-xs mt-1"
+               :class="data.indicators.macd_histogram > 0 ? 'text-success-500' : 'text-danger-500'"
+               x-text="data.indicators.macd_histogram > 0 ? 'Bullish' : 'Bearish'"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">Bollinger Band</p>
+            <p class="text-lg font-bold font-mono text-white"
+               x-text="data.indicators.bb_middle ? '$' + data.indicators.bb_middle.toFixed(2) : 'N/A'"></p>
+            <p class="text-xs text-gray-500 mt-1"
+               x-text="data.indicators.bb_upper && data.indicators.bb_lower ? '$' + data.indicators.bb_lower.toFixed(2) + ' — $' + data.indicators.bb_upper.toFixed(2) : ''"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">ATR (14)</p>
+            <p class="text-xl font-bold font-mono text-white"
+               x-text="data.indicators.atr ? '$' + data.indicators.atr.toFixed(2) : 'N/A'"></p>
+            <p class="text-xs text-gray-500 mt-1">Volatility measure</p>
+          </div>
+        </div>
+
+        <!-- Moving Averages -->
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-6">
+          <template x-for="ma in [
+            {label: 'SMA 20', val: data.indicators.sma_20},
+            {label: 'SMA 50', val: data.indicators.sma_50},
+            {label: 'SMA 200', val: data.indicators.sma_200},
+            {label: 'EMA 12', val: data.indicators.ema_12},
+            {label: 'EMA 26', val: data.indicators.ema_26},
+          ]">
+            <div class="p-3 rounded-lg bg-surface-elevated text-center">
+              <p class="text-xs text-gray-500 mb-1" x-text="ma.label"></p>
+              <p class="text-sm font-mono font-semibold"
+                 :class="ma.val && data.quote.price > ma.val ? 'text-success-400' : 'text-danger-400'"
+                 x-text="ma.val ? '$' + ma.val.toFixed(2) : 'N/A'"></p>
+            </div>
+          </template>
+        </div>
+
+        <!-- News Section -->
+        <template x-if="newsData">
+          <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">News & Sentiment</h3>
+              <span class="px-2 py-1 rounded text-xs font-semibold"
+                    :class="newsData.sentiment === 'bullish' ? 'bg-success-500/20 text-success-400' : newsData.sentiment === 'bearish' ? 'bg-danger-500/20 text-danger-400' : 'bg-gray-500/20 text-gray-400'"
+                    x-text="newsData.sentiment.toUpperCase()"></span>
+            </div>
+            <p class="text-sm text-gray-300 mb-3" x-text="newsData.raw_analysis"></p>
+            <div class="space-y-2 max-h-60 overflow-y-auto scrollbar-thin">
+              <template x-for="item in newsData.items">
+                <div class="p-3 rounded-lg bg-surface-elevated">
+                  <div class="flex items-start gap-2">
+                    <span class="mt-0.5 w-2 h-2 rounded-full flex-shrink-0"
+                          :class="item.sentiment === 'bullish' ? 'bg-success-400' : item.sentiment === 'bearish' ? 'bg-danger-400' : 'bg-gray-500'"></span>
+                    <div>
+                      <p class="text-sm font-medium text-white" x-text="item.headline"></p>
+                      <p class="text-xs text-gray-400 mt-1" x-text="item.summary" x-show="item.summary"></p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <!-- Add to Portfolio Button -->
+        <div class="mb-6">
+          <button @click="addToPortfolio()"
+                  class="w-full py-3 rounded-xl bg-surface-elevated hover:bg-surface-floating text-gray-300 hover:text-white font-medium text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-[0.99]">
+            + Add to Portfolio at Current Price
+          </button>
+        </div>
+
+        <!-- Backtest -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Backtest</h3>
+            <button @click="runBacktest()"
+                    :disabled="backtestLoading"
+                    class="px-4 py-2 rounded-lg bg-surface-elevated hover:bg-surface-floating text-gray-300 hover:text-white text-sm font-medium transition-colors disabled:opacity-50">
+              <span x-show="!backtestLoading">Run 1Y Backtest</span>
+              <span x-show="backtestLoading" class="flex items-center gap-2">
+                <span class="w-3 h-3 border-2 border-gray-500/30 border-t-gray-400 rounded-full animate-spin"></span>
+                Running...
+              </span>
+            </button>
+          </div>
+          <template x-if="backtestResult">
+            <div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div class="p-3 rounded-lg bg-surface-elevated text-center">
+                  <p class="text-xs text-gray-500 mb-1">Total Return</p>
+                  <p class="text-lg font-bold font-mono" :class="backtestResult.total_return_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                     x-text="(backtestResult.total_return_pct >= 0 ? '+' : '') + backtestResult.total_return_pct.toFixed(2) + '%'"></p>
+                </div>
+                <div class="p-3 rounded-lg bg-surface-elevated text-center">
+                  <p class="text-xs text-gray-500 mb-1">Win Rate</p>
+                  <p class="text-lg font-bold font-mono" :class="backtestResult.win_rate >= 50 ? 'text-success-400' : 'text-danger-400'"
+                     x-text="backtestResult.win_rate.toFixed(1) + '%'"></p>
+                </div>
+                <div class="p-3 rounded-lg bg-surface-elevated text-center">
+                  <p class="text-xs text-gray-500 mb-1">Trades</p>
+                  <p class="text-lg font-bold font-mono text-white" x-text="backtestResult.total_trades"></p>
+                </div>
+                <div class="p-3 rounded-lg bg-surface-elevated text-center">
+                  <p class="text-xs text-gray-500 mb-1">Max Drawdown</p>
+                  <p class="text-lg font-bold font-mono text-danger-400" x-text="'-' + backtestResult.max_drawdown_pct.toFixed(2) + '%'"></p>
+                </div>
+              </div>
+              <div class="relative" style="height:120px">
+                <canvas id="equityCurveCanvas"></canvas>
+              </div>
+            </div>
+          </template>
+          <p x-show="!backtestResult && !backtestLoading" class="text-sm text-gray-500">Hit "Run 1Y Backtest" to see how the signals would have done</p>
+        </div>
+
+        <!-- Log Trade button -->
+        <div class="mb-6">
+          <button @click="logTradeFromAnalysis()"
+                  class="w-full py-3 rounded-xl bg-surface-elevated hover:bg-surface-floating text-gray-300 hover:text-white font-medium text-sm transition-colors">
+            + Log Trade to Journal
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== PORTFOLIO TAB ===== -->
+    <template x-if="activeTab === 'portfolio'">
+      <div>
+        <!-- eToro Sync Bar -->
+        <div class="mb-6 p-4 rounded-xl bg-surface-raised shadow-card flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="w-2.5 h-2.5 rounded-full" :class="etoroConnected ? 'bg-success-400' : 'bg-gray-500'"></span>
+            <span class="text-sm font-medium" :class="etoroConnected ? 'text-success-400' : 'text-gray-400'"
+                  x-text="etoroConnected ? 'eToro Connected' : 'eToro Not Connected'"></span>
+            <span x-show="lastSyncTime" class="text-xs text-gray-500" x-text="'Last sync: ' + lastSyncTime"></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button @click="syncEtoro()"
+                    :disabled="syncing"
+                    class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+              <span x-show="!syncing">Sync from eToro</span>
+              <span x-show="syncing" class="flex items-center gap-2">
+                <span class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                Syncing...
+              </span>
+            </button>
+          </div>
+        </div>
+        <p x-show="syncError" x-text="syncError" class="mb-4 text-sm text-danger-400 px-1"></p>
+        <p x-show="syncSuccess" x-text="syncSuccess" class="mb-4 text-sm text-success-400 px-1"></p>
+
+        <div class="mb-6" x-show="portfolio">
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+              <p class="text-xs text-gray-500 mb-1">Total Value</p>
+              <p class="text-xl font-bold font-mono text-white" x-text="portfolio ? '€' + portfolio.total_value.toLocaleString(undefined, {minimumFractionDigits:2}) : '€0'"></p>
+            </div>
+            <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+              <p class="text-xs text-gray-500 mb-1">Total Cost</p>
+              <p class="text-xl font-bold font-mono text-gray-300" x-text="portfolio ? '€' + portfolio.total_cost.toLocaleString(undefined, {minimumFractionDigits:2}) : '€0'"></p>
+            </div>
+            <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+              <p class="text-xs text-gray-500 mb-1">Total P&L</p>
+              <p class="text-xl font-bold font-mono"
+                 :class="portfolio && portfolio.total_pnl >= 0 ? 'text-success-400' : 'text-danger-400'"
+                 x-text="portfolio ? (portfolio.total_pnl >= 0 ? '+€' : '-€') + Math.abs(portfolio.total_pnl).toFixed(2) : '€0'"></p>
+            </div>
+            <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+              <p class="text-xs text-gray-500 mb-1">P&L %</p>
+              <p class="text-xl font-bold font-mono"
+                 :class="portfolio && portfolio.total_pnl_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                 x-text="portfolio ? (portfolio.total_pnl_pct >= 0 ? '+' : '') + portfolio.total_pnl_pct.toFixed(2) + '%' : '0%'"></p>
+            </div>
+          </div>
+
+          <!-- Export CSV -->
+          <div class="flex justify-end mb-3">
+            <button @click="exportCSV('portfolio')" class="px-3 py-1.5 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-xs font-medium focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95">
+              Export CSV
+            </button>
+          </div>
+
+          <!-- Holdings Table (Grouped by Ticker) -->
+          <div class="rounded-xl bg-surface-raised shadow-card overflow-hidden overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-gray-700/50">
+                  <th class="text-left p-4 text-xs text-gray-500 font-semibold uppercase">Ticker</th>
+                  <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Shares</th>
+                  <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Value</th>
+                  <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Invested</th>
+                  <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">P&L</th>
+                  <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">P&L %</th>
+                  <th class="p-4"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="g in (portfolio ? (portfolio.groups || []) : [])" :key="'pg-'+g.ticker">
+                  <tr>
+                    <td colspan="7" class="p-0">
+                      <div x-data="{ open: false }">
+                        <!-- Group header row -->
+                        <div @click="open = !open" class="flex items-center cursor-pointer hover:bg-surface-elevated border-b border-gray-800/50 transition-colors">
+                          <div class="p-4 flex items-center gap-2 flex-1 min-w-[120px]">
+                            <svg :class="open ? 'rotate-90' : ''" class="w-3.5 h-3.5 text-gray-500 transition-transform duration-150" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                            <button @click.stop="openStockModal(g.ticker)"
+                                    class="font-semibold text-brand-400 hover:text-brand-300"
+                                    x-text="g.ticker"></button>
+                            <span x-show="g.positions.length > 1" class="text-[10px] text-gray-500 bg-surface-floating px-1.5 py-0.5 rounded-full" x-text="g.positions.length + ' positions'"></span>
+                          </div>
+                          <div class="p-4 text-right font-mono min-w-[80px]" x-text="g.total_shares.toFixed(2)"></div>
+                          <div class="p-4 text-right font-mono text-white min-w-[100px]" x-text="'€' + g.total_value.toFixed(2)"></div>
+                          <div class="p-4 text-right font-mono text-gray-400 min-w-[100px]" x-text="'€' + g.total_cost.toFixed(2)"></div>
+                          <div class="p-4 text-right font-mono font-semibold min-w-[100px]"
+                               :class="g.pnl >= 0 ? 'text-success-400' : 'text-danger-400'"
+                               x-text="(g.pnl >= 0 ? '+€' : '-€') + Math.abs(g.pnl).toFixed(2)"></div>
+                          <div class="p-4 text-right font-mono min-w-[70px]"
+                               :class="g.pnl_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                               x-text="(g.pnl_pct >= 0 ? '+' : '') + g.pnl_pct.toFixed(2) + '%'"></div>
+                          <div class="p-4 min-w-[60px] text-right">
+                            <button @click.stop="removeFromPortfolio(g.ticker)"
+                                    class="text-gray-500 hover:text-danger-400 text-xs">Remove</button>
+                          </div>
+                        </div>
+                        <!-- Expanded sub-positions -->
+                        <div x-show="open" x-collapse>
+                          <template x-for="(pos, idx) in g.positions" :key="'pos-'+g.ticker+'-'+idx">
+                            <div class="flex items-center bg-surface-elevated/50 border-b border-gray-800/30">
+                              <div class="p-3 pl-10 flex-1 min-w-[120px]">
+                                <span class="text-xs text-gray-500">Position <span x-text="idx + 1"></span></span>
+                              </div>
+                              <div class="p-3 text-right font-mono text-xs text-gray-400 min-w-[80px]" x-text="pos.shares.toFixed(4)"></div>
+                              <div class="p-3 text-right font-mono text-xs text-white min-w-[100px]" x-text="'€' + pos.market_value.toFixed(2)"></div>
+                              <div class="p-3 text-right font-mono text-xs text-gray-400 min-w-[100px]" x-text="'€' + pos.avg_cost.toFixed(2) + ' avg'"></div>
+                              <div class="p-3 text-right font-mono text-xs font-semibold min-w-[100px]"
+                                   :class="pos.pnl >= 0 ? 'text-success-400' : 'text-danger-400'"
+                                   x-text="(pos.pnl >= 0 ? '+€' : '-€') + Math.abs(pos.pnl).toFixed(2)"></div>
+                              <div class="p-3 text-right font-mono text-xs min-w-[70px]"
+                                   :class="pos.pnl_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                                   x-text="(pos.pnl_pct >= 0 ? '+' : '') + pos.pnl_pct.toFixed(2) + '%'"></div>
+                              <div class="p-3 min-w-[60px]"></div>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <div x-show="portfolio && (!portfolio.groups || portfolio.groups.length === 0)" class="p-8 text-center text-gray-500 text-sm">
+              Nothing here yet. Analyze a stock and add it.
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== PORTFOLIO ANALYTICS ===== -->
+        <div class="mt-6" x-show="portfolio && portfolio.holdings.length > 0">
+          <h3 class="text-lg font-semibold text-white mb-4">Portfolio Analytics</h3>
+          <div class="flex flex-wrap gap-2 mb-5">
+            <template x-for="tab in [
+              {id:'allocation',label:'Allocation'},{id:'correlation',label:'Correlation'},
+              {id:'beta',label:'Beta'},{id:'pnlHistory',label:'P&L History'},
+              {id:'dividends',label:'Dividends'},{id:'taxLots',label:'Tax Lots'},
+              {id:'aging',label:'Aging'},{id:'rebalance',label:'Rebalance'},
+              {id:'exposure',label:'Exposure'},{id:'pnlBreakdown',label:'P&L Breakdown'}
+            ]" :key="tab.id">
+              <button @click="loadRiskData(tab.id)"
+                :class="riskTab === tab.id ? 'bg-brand-500 text-white shadow-md' : 'bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating'"
+                class="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150"
+                x-text="tab.label"></button>
+            </template>
+          </div>
+          <div x-show="riskLoading" class="flex justify-center py-12">
+            <svg class="animate-spin h-8 w-8 text-brand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+          </div>
+
+          <!-- ALLOCATION -->
+          <div x-show="riskTab === 'allocation' && !riskLoading && allocationData" class="rounded-xl bg-surface-raised shadow-card p-5">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="flex justify-center"><canvas id="allocationCanvas" class="max-w-[300px] max-h-[300px]"></canvas></div>
+              <div>
+                <h4 class="text-sm font-semibold text-gray-300 mb-3">Sector Breakdown</h4>
+                <div class="space-y-2">
+                  <template x-for="[sector, pct] in Object.entries(allocationData?.by_sector || {})" :key="sector">
+                    <div class="flex items-center justify-between text-sm">
+                      <span class="text-gray-400" x-text="sector"></span>
+                      <div class="flex items-center gap-3">
+                        <div class="w-24 h-2 rounded-full bg-surface-elevated overflow-hidden">
+                          <div class="h-full rounded-full bg-brand-400" :style="'width:' + Math.min(pct, 100) + '%'"></div>
+                        </div>
+                        <span class="font-mono text-white w-12 text-right" x-text="pct.toFixed(1) + '%'"></span>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CORRELATION -->
+          <div x-show="riskTab === 'correlation' && !riskLoading && correlationData" class="rounded-xl bg-surface-raised shadow-card p-5 overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead><tr>
+                <th class="p-2 text-left text-gray-400"></th>
+                <template x-for="t in (correlationData?.tickers || [])" :key="'ch-'+t">
+                  <th class="p-2 text-center text-gray-400 font-mono" x-text="t"></th>
+                </template>
+              </tr></thead>
+              <tbody>
+                <template x-for="(row, ri) in (correlationData?.matrix || [])" :key="'cr-'+ri">
+                  <tr>
+                    <td class="p-2 text-gray-400 font-mono" x-text="correlationData.tickers[ri]"></td>
+                    <template x-for="(val, ci) in row" :key="'cc-'+ri+'-'+ci">
+                      <td class="p-2 text-center font-mono text-white"
+                          :class="Math.abs(val) < 0.3 ? 'bg-green-900/40' : Math.abs(val) < 0.7 ? 'bg-yellow-900/40' : 'bg-red-900/40'"
+                          x-text="val.toFixed(2)"></td>
+                    </template>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- BETA -->
+          <div x-show="riskTab === 'beta' && !riskLoading && betaData" class="rounded-xl bg-surface-raised shadow-card p-5">
+            <div class="flex items-center gap-6 mb-5">
+              <div>
+                <p class="text-xs text-gray-400 uppercase tracking-wide">Portfolio Beta</p>
+                <p class="text-4xl font-bold font-mono"
+                   :class="(betaData?.portfolio_beta || 0) > 1 ? 'text-danger-400' : 'text-brand-400'"
+                   x-text="betaData?.portfolio_beta != null ? betaData.portfolio_beta.toFixed(2) : 'N/A'"></p>
+              </div>
+              <p class="text-xs text-gray-500">vs S&amp;P 500. &gt;1 = more volatile than market.</p>
+            </div>
+            <table class="w-full text-sm">
+              <thead><tr class="border-b border-surface-floating">
+                <th class="py-2 text-left text-gray-400 font-medium">Ticker</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Beta</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Weight</th>
+              </tr></thead>
+              <tbody>
+                <template x-for="b in (betaData?.holdings || [])" :key="'b-'+b.ticker">
+                  <tr class="border-b border-surface-elevated">
+                    <td class="py-2 font-mono text-white" x-text="b.ticker"></td>
+                    <td class="py-2 text-right font-mono" :class="(b.beta || 0) > 1 ? 'text-danger-400' : 'text-brand-400'"
+                        x-text="b.beta != null ? b.beta.toFixed(2) : 'N/A'"></td>
+                    <td class="py-2 text-right font-mono text-gray-300" x-text="b.weight.toFixed(1) + '%'"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- P&L HISTORY -->
+          <div x-show="riskTab === 'pnlHistory' && !riskLoading && pnlHistoryData" class="rounded-xl bg-surface-raised shadow-card p-5">
+            <canvas id="pnlHistoryCanvas" class="w-full" style="height:300px"></canvas>
+          </div>
+
+          <!-- DIVIDENDS -->
+          <div x-show="riskTab === 'dividends' && !riskLoading && dividendData" class="rounded-xl bg-surface-raised shadow-card p-5 overflow-x-auto">
+            <div class="mb-3 flex items-center justify-between">
+              <h4 class="text-sm font-semibold text-gray-300">Dividend Summary</h4>
+              <span class="text-xs font-mono text-brand-400" x-text="'Est. Annual: $' + (dividendData?.total_annual_income || 0).toFixed(2)"></span>
+            </div>
+            <table class="w-full text-sm">
+              <thead><tr class="border-b border-surface-floating">
+                <th class="py-2 text-left text-gray-400 font-medium">Ticker</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Annual Div</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Yield %</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Ex-Date</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Annual Income</th>
+              </tr></thead>
+              <tbody>
+                <template x-for="d in (dividendData?.holdings || [])" :key="'d-'+d.ticker">
+                  <tr class="border-b border-surface-elevated">
+                    <td class="py-2 font-mono text-white" x-text="d.ticker"></td>
+                    <td class="py-2 text-right font-mono text-gray-300" x-text="'$' + d.annual_dividend.toFixed(2)"></td>
+                    <td class="py-2 text-right font-mono text-brand-400" x-text="d.dividend_yield.toFixed(2) + '%'"></td>
+                    <td class="py-2 text-right font-mono text-gray-400" x-text="d.ex_date || '—'"></td>
+                    <td class="py-2 text-right font-mono text-white" x-text="'$' + d.annual_income.toFixed(2)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- TAX LOTS -->
+          <div x-show="riskTab === 'taxLots' && !riskLoading && taxLotData" class="rounded-xl bg-surface-raised shadow-card p-5 space-y-2">
+            <template x-for="group in (taxLotData?.holdings || [])" :key="'tl-'+group.ticker">
+              <div class="rounded-lg bg-surface-elevated">
+                <button @click="expandedTaxLot = expandedTaxLot === group.ticker ? null : group.ticker"
+                        class="w-full flex items-center justify-between p-3 text-sm hover:bg-surface-floating rounded-lg transition-colors duration-150">
+                  <span class="font-mono text-white font-semibold" x-text="group.ticker"></span>
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs font-mono text-gray-400" x-text="'FIFO: $' + group.fifo_cost_basis.toFixed(2)"></span>
+                    <svg :class="expandedTaxLot === group.ticker ? 'rotate-180' : ''" class="w-4 h-4 text-gray-500 transition-transform duration-150" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </div>
+                </button>
+                <div x-show="expandedTaxLot === group.ticker" class="px-3 pb-3">
+                  <table class="w-full text-xs">
+                    <thead><tr class="border-b border-surface-floating">
+                      <th class="py-1.5 text-left text-gray-500">Date</th>
+                      <th class="py-1.5 text-right text-gray-500">Shares</th>
+                      <th class="py-1.5 text-right text-gray-500">Cost/Share</th>
+                      <th class="py-1.5 text-right text-gray-500">Total Cost</th>
+                    </tr></thead>
+                    <tbody>
+                      <template x-for="(lot, li) in group.lots" :key="'lot-'+li">
+                        <tr>
+                          <td class="py-1.5 font-mono text-gray-400" x-text="lot.date ? lot.date.substring(0,10) : '—'"></td>
+                          <td class="py-1.5 text-right font-mono text-gray-300" x-text="lot.shares"></td>
+                          <td class="py-1.5 text-right font-mono text-gray-300" x-text="'$' + lot.cost_per_share.toFixed(2)"></td>
+                          <td class="py-1.5 text-right font-mono text-white" x-text="'$' + lot.total_cost.toFixed(2)"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- AGING -->
+          <div x-show="riskTab === 'aging' && !riskLoading && agingData" class="rounded-xl bg-surface-raised shadow-card p-5 overflow-x-auto">
+            <div class="mb-3 text-xs text-gray-500">Average: <span class="font-mono text-white" x-text="agingData?.avg_days_held + ' days'"></span></div>
+            <table class="w-full text-sm">
+              <thead><tr class="border-b border-surface-floating">
+                <th class="py-2 text-left text-gray-400 font-medium">Ticker</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Days Held</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Weeks</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Status</th>
+              </tr></thead>
+              <tbody>
+                <template x-for="a in (agingData?.positions || [])" :key="'a-'+a.ticker">
+                  <tr class="border-b border-surface-elevated">
+                    <td class="py-2 font-mono text-white" x-text="a.ticker"></td>
+                    <td class="py-2 text-right font-mono"
+                        :class="a.days_held < 30 ? 'text-brand-400' : a.days_held < 90 ? 'text-yellow-400' : 'text-danger-400'"
+                        x-text="a.days_held"></td>
+                    <td class="py-2 text-right font-mono text-gray-300" x-text="a.weeks_held"></td>
+                    <td class="py-2 text-right">
+                      <span class="px-2 py-0.5 rounded-full text-xs font-medium"
+                            :class="a.days_held < 30 ? 'bg-green-900/40 text-brand-400' : a.days_held < 90 ? 'bg-yellow-900/40 text-yellow-400' : 'bg-red-900/40 text-danger-400'"
+                            x-text="a.days_held < 30 ? 'Fresh' : a.days_held < 90 ? 'Maturing' : 'Aged'"></span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- REBALANCE -->
+          <div x-show="riskTab === 'rebalance' && !riskLoading && rebalanceData" class="rounded-xl bg-surface-raised shadow-card p-5 overflow-x-auto">
+            <div class="mb-3 text-xs text-gray-500">Target: Equal weight. Total value: <span class="font-mono text-white" x-text="'$' + (rebalanceData?.total_value || 0).toLocaleString(undefined, {minimumFractionDigits:2})"></span></div>
+            <table class="w-full text-sm">
+              <thead><tr class="border-b border-surface-floating">
+                <th class="py-2 text-left text-gray-400 font-medium">Ticker</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Current %</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Target %</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Diff</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Action</th>
+                <th class="py-2 text-right text-gray-400 font-medium">Amount</th>
+              </tr></thead>
+              <tbody>
+                <template x-for="r in (rebalanceData?.actions || [])" :key="'r-'+r.ticker">
+                  <tr class="border-b border-surface-elevated">
+                    <td class="py-2 font-mono text-white" x-text="r.ticker"></td>
+                    <td class="py-2 text-right font-mono text-gray-300" x-text="r.current_pct.toFixed(1) + '%'"></td>
+                    <td class="py-2 text-right font-mono text-gray-300" x-text="r.target_pct.toFixed(1) + '%'"></td>
+                    <td class="py-2 text-right font-mono"
+                        :class="r.diff_pct >= 0 ? 'text-brand-400' : 'text-danger-400'"
+                        x-text="(r.diff_pct >= 0 ? '+' : '') + r.diff_pct.toFixed(1) + '%'"></td>
+                    <td class="py-2 text-right">
+                      <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                            :class="r.action === 'BUY' ? 'bg-green-900/40 text-brand-400' : r.action === 'SELL' ? 'bg-red-900/40 text-danger-400' : 'bg-surface-floating text-gray-500'"
+                            x-text="r.action"></span>
+                    </td>
+                    <td class="py-2 text-right font-mono text-white" x-text="'$' + r.dollar_amount.toFixed(2)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- EXPOSURE -->
+          <div x-show="riskTab === 'exposure' && !riskLoading && exposureData" class="rounded-xl bg-surface-raised shadow-card p-5 space-y-3">
+            <template x-for="w in (exposureData?.warnings || [])" :key="'ew-'+w">
+              <p class="text-xs text-danger-400 bg-danger-500/10 rounded-lg px-3 py-2" x-text="w"></p>
+            </template>
+            <template x-for="e in (exposureData?.holdings || [])" :key="'e-'+e.ticker">
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-mono text-white" x-text="e.ticker"></span>
+                  <span class="text-xs font-mono" :class="e.over_limit ? 'text-danger-400' : 'text-gray-400'"
+                        x-text="e.pct.toFixed(1) + '%'"></span>
+                </div>
+                <div class="w-full h-3 rounded-full bg-surface-elevated overflow-hidden">
+                  <div class="h-full rounded-full" :class="e.over_limit ? 'bg-danger-500' : 'bg-brand-500'"
+                       :style="'width:' + Math.min(e.pct, 100) + '%'"></div>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- P&L BREAKDOWN -->
+          <div x-show="riskTab === 'pnlBreakdown' && !riskLoading && pnlBreakdownData" class="rounded-xl bg-surface-raised shadow-card p-5">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h4 class="text-sm font-semibold text-gray-300 mb-3">Unrealized P&L</h4>
+                <p class="text-xs text-gray-500 mb-2">Total: <span class="font-mono"
+                   :class="(pnlBreakdownData?.total_unrealized || 0) >= 0 ? 'text-brand-400' : 'text-danger-400'"
+                   x-text="((pnlBreakdownData?.total_unrealized || 0) >= 0 ? '+' : '') + '$' + (pnlBreakdownData?.total_unrealized || 0).toFixed(2)"></span></p>
+                <div class="space-y-2">
+                  <template x-for="u in (pnlBreakdownData?.unrealized || [])" :key="'u-'+u.ticker">
+                    <div class="flex items-center justify-between rounded-lg bg-surface-elevated px-3 py-2">
+                      <span class="font-mono text-sm text-white" x-text="u.ticker"></span>
+                      <span class="font-mono text-sm" :class="u.unrealized_pnl >= 0 ? 'text-brand-400' : 'text-danger-400'"
+                            x-text="(u.unrealized_pnl >= 0 ? '+' : '') + '$' + u.unrealized_pnl.toFixed(2)"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div>
+                <h4 class="text-sm font-semibold text-gray-300 mb-3">Realized P&L</h4>
+                <div class="rounded-lg bg-surface-elevated px-4 py-4 text-center">
+                  <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">From Closed Trades</p>
+                  <p class="text-3xl font-bold font-mono"
+                     :class="(pnlBreakdownData?.total_realized || 0) >= 0 ? 'text-brand-400' : 'text-danger-400'"
+                     x-text="((pnlBreakdownData?.total_realized || 0) >= 0 ? '+' : '') + '$' + (pnlBreakdownData?.total_realized || 0).toFixed(2)"></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </template>
+
+    <!-- ===== WATCHLIST TAB ===== -->
+    <template x-if="activeTab === 'watchlist'">
+      <div>
+        <div class="mb-6 flex gap-2">
+          <input type="text" x-model="watchlistTicker" placeholder="Add ticker (e.g. AAPL)"
+                 @keydown.enter="addToWatchlist()"
+                 class="flex-1 px-4 py-3 rounded-xl bg-surface-raised border border-gray-700 text-white placeholder-gray-500 text-sm font-medium focus:border-brand-500 focus:outline-none shadow-card">
+          <button @click="addToWatchlist()"
+                  class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none active:scale-95">
+            Add
+          </button>
+        </div>
+        <div class="rounded-xl bg-surface-raised shadow-card overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-700/50">
+                <th class="text-left p-4 text-xs text-gray-500 font-semibold uppercase">Ticker</th>
+                <th class="text-left p-4 text-xs text-gray-500 font-semibold uppercase">Name</th>
+                <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Price</th>
+                <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Change %</th>
+                <th class="text-center p-4 text-xs text-gray-500 font-semibold uppercase">Signal</th>
+                <th class="p-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="item in watchlist" :key="item.ticker">
+                <tr class="border-b border-gray-800/50 hover:bg-surface-elevated transition-colors">
+                  <td class="p-4">
+                    <button @click="searchTicker = item.ticker; activeTab = 'analysis'; analyzeStock()"
+                            class="font-semibold text-brand-400 hover:text-brand-300 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
+                            x-text="item.ticker"></button>
+                  </td>
+                  <td class="p-4 text-gray-400" x-text="item.name || '—'"></td>
+                  <td class="p-4 text-right font-mono text-white" x-text="item.price ? '$' + item.price.toFixed(2) : '—'"></td>
+                  <td class="p-4 text-right font-mono"
+                      :class="item.change_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                      x-text="item.change_pct != null ? (item.change_pct >= 0 ? '+' : '') + item.change_pct.toFixed(2) + '%' : '—'"></td>
+                  <td class="p-4 text-center">
+                    <span class="px-2 py-1 rounded text-xs font-semibold"
+                          :class="item.signal_direction === 'BUY' ? 'bg-green-500/20 text-green-400' : item.signal_direction === 'SELL' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'"
+                          x-text="item.signal_direction || 'HOLD'"></span>
+                  </td>
+                  <td class="p-4 text-right">
+                    <button @click="removeFromWatchlist(item.ticker)"
+                            class="text-gray-500 hover:text-danger-400 transition-colors text-xs focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95">
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <div x-show="watchlistLoading" class="p-8 text-center text-gray-500 text-sm">
+            <span class="w-4 h-4 border-2 border-gray-500/30 border-t-gray-400 rounded-full animate-spin inline-block mr-2"></span>
+            Loading watchlist...
+          </div>
+          <div x-show="!watchlistLoading && watchlist.length === 0" class="p-8 text-center text-gray-500 text-sm">
+            Watchlist is empty. Add a ticker above.
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== SCREENER TAB ===== -->
+    <template x-if="activeTab === 'screener'">
+      <div>
+        <div class="mb-6 flex items-center justify-between">
+          <h2 class="text-lg font-bold text-white">Stock Screener</h2>
+          <div class="flex items-center gap-2">
+            <button @click="exportCSV('screener')" x-show="screenerPicks.length > 0" class="px-3 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-xs font-medium focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95">
+              Export CSV
+            </button>
+          <button @click="startScan()"
+                  :disabled="screenerScanning"
+                  class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <span x-show="!screenerScanning">Scan Now</span>
+            <span x-show="screenerScanning" class="flex items-center gap-2">
+              <span class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              Scanning...
+            </span>
+          </button>
+          </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div x-show="screenerScanning" class="mb-6">
+          <div class="h-2 bg-surface-elevated rounded-full overflow-hidden">
+            <div class="h-full bg-brand-500 transition-all duration-300 rounded-full"
+                 :style="'width:' + Math.min(100, screenerProgress * 2) + '%'"></div>
+          </div>
+          <p class="text-xs text-gray-500 mt-1" x-text="'Scanned ' + screenerProgress + ' stocks...'"></p>
+        </div>
+
+        <!-- Results table -->
+        <div x-show="screenerPicks.length > 0" class="rounded-xl bg-surface-raised shadow-card overflow-hidden overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-700/50">
+                <th class="text-left p-4 text-xs text-gray-500 font-semibold uppercase">#</th>
+                <th class="text-left p-4 text-xs text-gray-500 font-semibold uppercase">Ticker</th>
+                <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Price</th>
+                <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">5D Chg%</th>
+                <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Score</th>
+                <th class="text-center p-4 text-xs text-gray-500 font-semibold uppercase">Signal</th>
+                <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Vol Ratio</th>
+                <th class="text-left p-4 text-xs text-gray-500 font-semibold uppercase">AI Thesis</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="(pick, idx) in screenerPicks" :key="pick.ticker">
+                <tr class="border-b border-gray-800/50 hover:bg-surface-elevated transition-colors">
+                  <td class="p-4 text-gray-500 text-xs" x-text="idx + 1"></td>
+                  <td class="p-4">
+                    <button @click="searchTicker = pick.ticker; activeTab = 'analysis'; analyzeStock()"
+                            class="font-semibold text-brand-400 hover:text-brand-300" x-text="pick.ticker"></button>
+                    <p class="text-xs text-gray-500" x-text="pick.name"></p>
+                  </td>
+                  <td class="p-4 text-right font-mono text-white" x-text="'$' + pick.price.toFixed(2)"></td>
+                  <td class="p-4 text-right font-mono"
+                      :class="pick.change_5d_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                      x-text="(pick.change_5d_pct >= 0 ? '+' : '') + pick.change_5d_pct.toFixed(2) + '%'"></td>
+                  <td class="p-4 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      <div class="w-16 h-2 bg-surface-elevated rounded-full overflow-hidden">
+                        <div class="h-full rounded-full"
+                             :class="pick.screener_score >= 60 ? 'bg-success-500' : pick.screener_score >= 40 ? 'bg-warn-500' : 'bg-danger-500'"
+                             :style="'width:' + pick.screener_score + '%'"></div>
+                      </div>
+                      <span class="font-mono text-xs font-bold text-white" x-text="pick.screener_score.toFixed(0)"></span>
+                    </div>
+                  </td>
+                  <td class="p-4 text-center">
+                    <span class="px-2 py-1 rounded text-xs font-semibold"
+                          :class="pick.signal_direction === 'BUY' ? 'bg-success-500/20 text-success-400' : pick.signal_direction === 'SELL' ? 'bg-danger-500/20 text-danger-400' : 'bg-warn-500/20 text-warn-400'"
+                          x-text="pick.signal_direction"></span>
+                  </td>
+                  <td class="p-4 text-right font-mono text-xs"
+                      :class="pick.volume_ratio >= 1.5 ? 'text-warn-400' : 'text-gray-400'"
+                      x-text="pick.volume_ratio.toFixed(1) + 'x'"></td>
+                  <td class="p-4 text-xs text-gray-400 max-w-xs truncate" x-text="pick.ai_thesis || '—'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <div x-show="screenerStatus === 'empty' && !screenerScanning" class="text-center py-16 text-gray-500">
+          <p class="text-lg mb-2">No scan results yet</p>
+          <p class="text-sm">Hit "Scan Now" to screen 50 stocks for 10%+ move setups</p>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== JOURNAL TAB ===== -->
+    <template x-if="activeTab === 'journal'">
+      <div>
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-bold text-white">Trade Journal</h2>
+          <button @click="exportCSV('journal')" class="px-3 py-1.5 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-xs font-medium focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95">
+            Export CSV
+          </button>
+        </div>
+
+        <!-- Stats cards -->
+        <div x-show="journal.stats && journal.stats.closed_trades > 0" class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">Win Rate</p>
+            <p class="text-xl font-bold font-mono" :class="journal.stats.win_rate >= 50 ? 'text-success-400' : 'text-danger-400'"
+               x-text="journal.stats.win_rate.toFixed(1) + '%'"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">Total P&L</p>
+            <p class="text-xl font-bold font-mono" :class="journal.stats.total_pnl >= 0 ? 'text-success-400' : 'text-danger-400'"
+               x-text="(journal.stats.total_pnl >= 0 ? '+$' : '-$') + Math.abs(journal.stats.total_pnl).toFixed(2)"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">Profit Factor</p>
+            <p class="text-xl font-bold font-mono text-white" x-text="journal.stats.profit_factor.toFixed(2)"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">Avg Gain</p>
+            <p class="text-lg font-bold font-mono text-success-400" x-text="'+' + journal.stats.avg_gain_pct.toFixed(2) + '%'"></p>
+          </div>
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+            <p class="text-xs text-gray-500 mb-1">Avg Loss</p>
+            <p class="text-lg font-bold font-mono text-danger-400" x-text="journal.stats.avg_loss_pct.toFixed(2) + '%'"></p>
+          </div>
+        </div>
+
+        <!-- Trades table -->
+        <div class="rounded-xl bg-surface-raised shadow-card overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-700/50">
+                <th class="text-left p-4 text-xs text-gray-500 font-semibold uppercase">Ticker</th>
+                <th class="text-center p-4 text-xs text-gray-500 font-semibold uppercase">Dir</th>
+                <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Entry</th>
+                <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Exit</th>
+                <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">Shares</th>
+                <th class="text-right p-4 text-xs text-gray-500 font-semibold uppercase">P&L</th>
+                <th class="text-center p-4 text-xs text-gray-500 font-semibold uppercase">Status</th>
+                <th class="p-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="trade in journal.trades" :key="trade.id">
+                <tr class="border-b border-gray-800/50 hover:bg-surface-elevated transition-colors">
+                  <td class="p-4 font-semibold text-white" x-text="trade.ticker"></td>
+                  <td class="p-4 text-center">
+                    <span class="px-2 py-0.5 rounded text-xs font-semibold"
+                          :class="trade.direction === 'BUY' ? 'bg-success-500/20 text-success-400' : 'bg-danger-500/20 text-danger-400'"
+                          x-text="trade.direction"></span>
+                  </td>
+                  <td class="p-4 text-right font-mono text-gray-300" x-text="'$' + trade.entry_price.toFixed(2)"></td>
+                  <td class="p-4 text-right font-mono" :class="trade.exit_price ? 'text-white' : 'text-gray-500'"
+                      x-text="trade.exit_price ? '$' + trade.exit_price.toFixed(2) : '—'"></td>
+                  <td class="p-4 text-right font-mono text-gray-300" x-text="trade.shares"></td>
+                  <td class="p-4 text-right font-mono font-semibold"
+                      :class="trade.pnl != null ? (trade.pnl >= 0 ? 'text-success-400' : 'text-danger-400') : 'text-gray-500'"
+                      x-text="trade.pnl != null ? (trade.pnl >= 0 ? '+' : '') + '$' + trade.pnl.toFixed(2) : '—'"></td>
+                  <td class="p-4 text-center">
+                    <span class="px-2 py-0.5 rounded text-xs" :class="trade.status === 'open' ? 'bg-warn-500/20 text-warn-400' : 'bg-gray-500/20 text-gray-400'"
+                          x-text="trade.status"></span>
+                  </td>
+                  <td class="p-4 text-right">
+                    <button @click="deleteTrade(trade.id)" class="text-gray-500 hover:text-danger-400 text-xs">Delete</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <div x-show="journal.trades.length === 0" class="p-8 text-center text-gray-500 text-sm">
+            No trades yet. Log one from the Analysis tab.
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== MARKET TAB ===== -->
+    <template x-if="activeTab === 'market'">
+      <div>
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-bold text-white">Market Overview</h2>
+          <button @click="loadMarketData()" :disabled="marketLoading"
+                  class="px-4 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-white text-sm font-medium">
+            Refresh
+          </button>
+        </div>
+
+        <!-- Indices bar -->
+        <div x-show="marketData && marketData.indices" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6">
+          <template x-for="idx in ['SPY','QQQ','DIA','IWM','^VIX']" :key="idx">
+            <div class="p-3 rounded-xl bg-surface-raised shadow-card text-center" x-show="marketData.indices[idx]">
+              <p class="text-xs text-gray-500 mb-1" x-text="marketData.indices[idx]?.name || idx"></p>
+              <p class="text-lg font-bold font-mono text-white" x-text="marketData.indices[idx] ? '$' + marketData.indices[idx].price.toFixed(2) : '—'"></p>
+              <p class="text-xs font-mono" :class="marketData.indices[idx]?.change_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                 x-text="marketData.indices[idx] ? (marketData.indices[idx].change_pct >= 0 ? '+' : '') + marketData.indices[idx].change_pct.toFixed(2) + '%' : ''"></p>
+            </div>
+          </template>
+        </div>
+
+        <!-- Sector heatmap -->
+        <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Sector Performance</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+          <template x-for="sector in (marketData ? marketData.sectors : [])" :key="sector.ticker">
+            <div class="p-4 rounded-xl shadow-card transition-colors"
+                 :class="sector.change_1d_pct >= 0 ? 'bg-success-500/10 border border-success-500/20' : 'bg-danger-500/10 border border-danger-500/20'">
+              <p class="text-sm font-semibold text-white mb-1" x-text="sector.name"></p>
+              <p class="text-xs text-gray-500 mb-2" x-text="sector.ticker"></p>
+              <div class="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <p class="text-gray-500">1D</p>
+                  <p class="font-mono font-semibold" :class="sector.change_1d_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                     x-text="(sector.change_1d_pct >= 0 ? '+' : '') + sector.change_1d_pct.toFixed(2) + '%'"></p>
+                </div>
+                <div>
+                  <p class="text-gray-500">1W</p>
+                  <p class="font-mono font-semibold" :class="sector.change_1w_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                     x-text="(sector.change_1w_pct >= 0 ? '+' : '') + sector.change_1w_pct.toFixed(2) + '%'"></p>
+                </div>
+                <div>
+                  <p class="text-gray-500">1M</p>
+                  <p class="font-mono font-semibold" :class="sector.change_1m_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                     x-text="(sector.change_1m_pct >= 0 ? '+' : '') + sector.change_1m_pct.toFixed(2) + '%'"></p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <div x-show="!marketData && !marketLoading" class="text-center py-16 text-gray-500">
+          <p class="text-lg mb-2">Hit "Refresh" to pull market data</p>
+        </div>
+        <div x-show="marketLoading" class="text-center py-16 text-gray-500">
+          <span class="w-5 h-5 border-2 border-gray-500/30 border-t-gray-400 rounded-full animate-spin inline-block mr-2"></span>
+          Loading market data...
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== TRADING TAB ===== -->
+    <template x-if="activeTab === 'trading'">
+      <div>
+        <h2 class="text-lg font-bold text-white mb-6">Trading Tools</h2>
+        <!-- Paper Trading -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Paper Trading</h3>
+            <div class="flex gap-2">
+              <button @click="loadPaperAccount()" class="px-3 py-1.5 rounded-lg bg-surface-elevated text-gray-400 hover:text-white text-xs font-medium transition-colors">Refresh</button>
+              <button @click="resetPaperAccount()" class="px-3 py-1.5 rounded-lg bg-danger-500/20 text-danger-400 hover:bg-danger-500/30 text-xs font-medium transition-colors">Reset</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div class="p-3 rounded-lg bg-surface-elevated text-center"><p class="text-xs text-gray-500 mb-1">Cash</p><p class="text-lg font-bold font-mono text-white" x-text="paperAccount ? '$' + paperAccount.cash_balance.toLocaleString(undefined,{minimumFractionDigits:2}) : '$100,000'"></p></div>
+            <div class="p-3 rounded-lg bg-surface-elevated text-center"><p class="text-xs text-gray-500 mb-1">Positions</p><p class="text-lg font-bold font-mono text-white" x-text="paperAccount ? '$' + paperAccount.positions_value.toLocaleString(undefined,{minimumFractionDigits:2}) : '$0'"></p></div>
+            <div class="p-3 rounded-lg bg-surface-elevated text-center"><p class="text-xs text-gray-500 mb-1">Equity</p><p class="text-lg font-bold font-mono text-white" x-text="paperAccount ? '$' + paperAccount.total_equity.toLocaleString(undefined,{minimumFractionDigits:2}) : '$100,000'"></p></div>
+            <div class="p-3 rounded-lg bg-surface-elevated text-center"><p class="text-xs text-gray-500 mb-1">P&L</p><p class="text-lg font-bold font-mono" :class="paperAccount && paperAccount.total_pnl >= 0 ? 'text-success-400' : 'text-danger-400'" x-text="paperAccount ? (paperAccount.total_pnl >= 0 ? '+$' : '-$') + Math.abs(paperAccount.total_pnl).toFixed(2) : '$0'"></p></div>
+          </div>
+          <div class="flex flex-wrap gap-2 items-end">
+            <div><label class="block text-xs text-gray-500 mb-1">Ticker</label><input type="text" x-model="paperTradeTicker" placeholder="AAPL" class="w-24 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none"></div>
+            <div><label class="block text-xs text-gray-500 mb-1">Shares</label><input type="number" x-model.number="paperTradeShares" placeholder="10" class="w-20 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none"></div>
+            <div><label class="block text-xs text-gray-500 mb-1">Direction</label><select x-model="paperTradeDir" class="px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none"><option value="BUY">BUY</option><option value="SHORT">SHORT</option></select></div>
+            <button @click="executePaperTrade()" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors active:scale-95">Execute</button>
+          </div>
+          <div x-show="paperAccount && paperAccount.open_positions && paperAccount.open_positions.length > 0" class="mt-4 overflow-x-auto">
+            <p class="text-xs text-gray-500 font-semibold mb-2">Open Positions</p>
+            <table class="w-full text-xs"><thead><tr class="border-b border-gray-700/50"><th class="text-left p-2 text-gray-500">Ticker</th><th class="text-right p-2 text-gray-500">Dir</th><th class="text-right p-2 text-gray-500">Shares</th><th class="text-right p-2 text-gray-500">Entry</th><th class="text-right p-2 text-gray-500">P&L</th><th class="p-2"></th></tr></thead>
+            <tbody><template x-for="pos in paperAccount.open_positions" :key="pos.id"><tr class="border-b border-gray-800/50"><td class="p-2 font-semibold text-brand-400" x-text="pos.ticker"></td><td class="p-2 text-right" x-text="pos.direction"></td><td class="p-2 text-right font-mono" x-text="pos.shares"></td><td class="p-2 text-right font-mono" x-text="'$'+pos.entry_price.toFixed(2)"></td><td class="p-2 text-right font-mono" :class="pos.unrealized_pnl>=0?'text-success-400':'text-danger-400'" x-text="pos.unrealized_pnl!=null?(pos.unrealized_pnl>=0?'+$':'-$')+Math.abs(pos.unrealized_pnl).toFixed(2):'—'"></td><td class="p-2"><button @click="closePaperTrade(pos.id)" class="text-gray-500 hover:text-danger-400 text-xs">Close</button></td></tr></template></tbody></table>
+          </div>
+        </div>
+        <!-- Trailing Stop -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Trailing Stop Calculator</h3>
+          <div class="flex flex-wrap gap-2 items-end mb-4">
+            <div><label class="block text-xs text-gray-500 mb-1">Ticker</label><input type="text" x-model="trailingStopTicker" placeholder="AAPL" class="w-24 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none"></div>
+            <button @click="loadTrailingStops()" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors active:scale-95">Calculate</button>
+          </div>
+          <div x-show="trailingStopData" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <template x-for="level in (trailingStopData?trailingStopData.levels:[])" :key="level.label"><div class="p-3 rounded-lg bg-surface-elevated"><p class="text-xs text-gray-500 mb-1" x-text="level.label"></p><p class="text-sm font-mono font-bold text-danger-400" x-text="'$'+level.stop_price.toFixed(2)"></p><p class="text-xs text-gray-500" x-text="level.distance_pct.toFixed(2)+'% below'"></p></div></template>
+          </div>
+        </div>
+        <!-- Options Chain -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Options Chain</h3>
+          <div class="flex flex-wrap gap-2 items-end mb-4">
+            <div><label class="block text-xs text-gray-500 mb-1">Ticker</label><input type="text" x-model="optionsTicker" placeholder="AAPL" class="w-24 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none"></div>
+            <button @click="loadOptionsChain()" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors active:scale-95">Load</button>
+          </div>
+          <div x-show="optionsData">
+            <div class="flex gap-2 mb-3 flex-wrap"><template x-for="exp in (optionsData?optionsData.expirations||[]:[])" :key="exp"><button @click="loadOptionsChainExpiry(exp)" class="px-2 py-1 rounded text-xs font-mono transition-colors" :class="optionsExpiry===exp?'bg-brand-600 text-white':'bg-surface-elevated text-gray-400 hover:text-white'" x-text="exp"></button></template></div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div><p class="text-xs font-semibold text-success-400 mb-2">CALLS</p><div class="overflow-x-auto max-h-60 overflow-y-auto scrollbar-thin"><table class="w-full text-xs"><thead><tr class="border-b border-gray-700/50"><th class="p-1.5 text-left text-gray-500">Strike</th><th class="p-1.5 text-right text-gray-500">Last</th><th class="p-1.5 text-right text-gray-500">Vol</th><th class="p-1.5 text-right text-gray-500">OI</th><th class="p-1.5 text-right text-gray-500">IV</th></tr></thead><tbody><template x-for="c in (optionsChain?optionsChain.calls||[]:[])" :key="c.strike"><tr class="border-b border-gray-800/50"><td class="p-1.5 font-mono" x-text="c.strike"></td><td class="p-1.5 text-right font-mono" x-text="c.lastPrice?.toFixed(2)"></td><td class="p-1.5 text-right font-mono" x-text="c.volume"></td><td class="p-1.5 text-right font-mono" x-text="c.openInterest"></td><td class="p-1.5 text-right font-mono" x-text="c.impliedVolatility?(c.impliedVolatility*100).toFixed(1)+'%':'—'"></td></tr></template></tbody></table></div></div>
+              <div><p class="text-xs font-semibold text-danger-400 mb-2">PUTS</p><div class="overflow-x-auto max-h-60 overflow-y-auto scrollbar-thin"><table class="w-full text-xs"><thead><tr class="border-b border-gray-700/50"><th class="p-1.5 text-left text-gray-500">Strike</th><th class="p-1.5 text-right text-gray-500">Last</th><th class="p-1.5 text-right text-gray-500">Vol</th><th class="p-1.5 text-right text-gray-500">OI</th><th class="p-1.5 text-right text-gray-500">IV</th></tr></thead><tbody><template x-for="p in (optionsChain?optionsChain.puts||[]:[])" :key="p.strike"><tr class="border-b border-gray-800/50"><td class="p-1.5 font-mono" x-text="p.strike"></td><td class="p-1.5 text-right font-mono" x-text="p.lastPrice?.toFixed(2)"></td><td class="p-1.5 text-right font-mono" x-text="p.volume"></td><td class="p-1.5 text-right font-mono" x-text="p.openInterest"></td><td class="p-1.5 text-right font-mono" x-text="p.impliedVolatility?(p.impliedVolatility*100).toFixed(1)+'%':'—'"></td></tr></template></tbody></table></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Risk/Reward -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Risk/Reward Calculator</h3>
+          <div class="flex flex-wrap gap-2 items-end mb-4">
+            <div><label class="block text-xs text-gray-500 mb-1">Ticker</label><input type="text" x-model="rrTicker" placeholder="AAPL" class="w-24 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none"></div>
+            <button @click="loadAutoRiskReward()" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors active:scale-95">Auto Calculate</button>
+          </div>
+          <div x-show="rrData" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="p-3 rounded-lg bg-surface-elevated"><p class="text-xs text-gray-500 mb-1">Entry</p><p class="text-sm font-mono font-bold text-white" x-text="rrData?'$'+rrData.entry_price.toFixed(2):''"></p></div>
+            <div class="p-3 rounded-lg bg-danger-500/10 border border-danger-500/20"><p class="text-xs text-gray-500 mb-1">Stop Loss</p><p class="text-sm font-mono font-bold text-danger-400" x-text="rrData?'$'+rrData.stop_loss.toFixed(2):''"></p></div>
+            <div class="p-3 rounded-lg bg-success-500/10 border border-success-500/20"><p class="text-xs text-gray-500 mb-1">Target 1</p><p class="text-sm font-mono font-bold text-success-400" x-text="rrData?'$'+rrData.target_1.toFixed(2):''"></p></div>
+            <div class="p-3 rounded-lg bg-success-500/10 border border-success-500/20"><p class="text-xs text-gray-500 mb-1">Target 2</p><p class="text-sm font-mono font-bold text-success-400" x-text="rrData?'$'+rrData.target_2.toFixed(2):''"></p></div>
+          </div>
+          <div x-show="rrData" class="mt-3 text-sm text-gray-500">R:R = <span class="font-mono text-white" x-text="rrData?'1:'+rrData.risk_reward_ratio_1.toFixed(1):''"></span></div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== RESEARCH TAB ===== -->
+    <template x-if="activeTab === 'research'">
+      <div>
+        <h2 class="text-lg font-bold text-white mb-6">Research & Sentiment</h2>
+        <!-- Earnings -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <div class="flex items-center justify-between mb-3"><h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Earnings Calendar</h3><button @click="loadEarnings()" class="px-3 py-1.5 rounded-lg bg-surface-elevated text-gray-400 hover:text-white text-xs font-medium transition-colors">Load Portfolio Earnings</button></div>
+          <div x-show="earningsData&&earningsData.length>0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <template x-for="e in earningsData" :key="e.ticker"><div class="p-3 rounded-lg bg-surface-elevated flex items-center justify-between"><div><p class="font-semibold text-sm text-brand-400" x-text="e.ticker"></p><p class="text-xs text-gray-500" x-text="e.earnings_date||'Unknown'"></p></div><span class="px-2 py-1 rounded text-xs font-bold" :class="e.days_until!=null&&e.days_until<=7?'bg-warn-500/20 text-warn-400':'bg-surface-floating text-gray-400'" x-text="e.days_until!=null?e.days_until+'d':'?'"></span></div></template>
+          </div>
+          <p x-show="!earningsData||earningsData.length===0" class="text-sm text-gray-500">Hit "Load Portfolio Earnings" to check dates.</p>
+        </div>
+        <!-- Analyst Ratings -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Analyst Ratings</h3>
+          <div class="flex flex-wrap gap-2 items-end mb-4"><div><label class="block text-xs text-gray-500 mb-1">Ticker</label><input type="text" x-model="analystTicker" placeholder="AAPL" class="w-24 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none"></div><button @click="loadAnalystRatings()" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors active:scale-95">Get Ratings</button></div>
+          <div x-show="analystData" class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div class="p-3 rounded-lg bg-surface-elevated text-center"><p class="text-xs text-gray-500 mb-1">Consensus</p><p class="text-sm font-bold" :class="analystData&&analystData.consensus&&analystData.consensus.includes('Buy')?'text-success-400':analystData&&analystData.consensus&&analystData.consensus.includes('Sell')?'text-danger-400':'text-warn-400'" x-text="analystData?analystData.consensus:''"></p></div>
+            <div class="p-3 rounded-lg bg-surface-elevated text-center"><p class="text-xs text-gray-500 mb-1">Buy</p><p class="text-sm font-bold font-mono text-success-400" x-text="analystData?analystData.buy_count:''"></p></div>
+            <div class="p-3 rounded-lg bg-surface-elevated text-center"><p class="text-xs text-gray-500 mb-1">Hold</p><p class="text-sm font-bold font-mono text-warn-400" x-text="analystData?analystData.hold_count:''"></p></div>
+            <div class="p-3 rounded-lg bg-surface-elevated text-center"><p class="text-xs text-gray-500 mb-1">Sell</p><p class="text-sm font-bold font-mono text-danger-400" x-text="analystData?analystData.sell_count:''"></p></div>
+            <div class="p-3 rounded-lg bg-surface-elevated text-center"><p class="text-xs text-gray-500 mb-1">Target</p><p class="text-sm font-bold font-mono text-white" x-text="analystData&&analystData.average_target_price?'$'+analystData.average_target_price.toFixed(2):'—'"></p></div>
+          </div>
+        </div>
+        <!-- Social Sentiment -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Social Sentiment</h3>
+          <div class="flex flex-wrap gap-2 items-end mb-4"><div><label class="block text-xs text-gray-500 mb-1">Ticker</label><input type="text" x-model="sentimentTicker" placeholder="AAPL" class="w-24 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none"></div><button @click="loadSentiment()" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors active:scale-95">Check Sentiment</button></div>
+          <div x-show="sentimentData">
+            <div class="flex items-center gap-4 mb-3"><span class="px-3 py-1 rounded-lg text-sm font-bold" :class="sentimentData&&sentimentData.overall_sentiment==='bullish'?'bg-success-500/20 text-success-400':sentimentData&&sentimentData.overall_sentiment==='bearish'?'bg-danger-500/20 text-danger-400':'bg-gray-500/20 text-gray-400'" x-text="sentimentData?sentimentData.overall_sentiment?.toUpperCase():''"></span><span class="text-xs text-gray-500">Mentions: <span class="text-white" x-text="sentimentData?sentimentData.mention_volume:''"></span></span></div>
+            <p class="text-sm text-gray-300 leading-relaxed" x-text="sentimentData?sentimentData.summary:''"></p>
+          </div>
+        </div>
+        <!-- Competitor Comparison -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Competitor Comparison</h3>
+          <div class="flex flex-wrap gap-2 items-end mb-4"><div><label class="block text-xs text-gray-500 mb-1">Ticker</label><input type="text" x-model="competitorTicker" placeholder="AAPL" class="w-24 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none"></div><button @click="loadCompetitors()" class="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors active:scale-95">Compare</button></div>
+          <div x-show="competitorData" class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-gray-700/50"><th class="text-left p-2 text-xs text-gray-500">Ticker</th><th class="text-right p-2 text-xs text-gray-500">Price</th><th class="text-right p-2 text-xs text-gray-500">Mkt Cap</th><th class="text-right p-2 text-xs text-gray-500">P/E</th><th class="text-right p-2 text-xs text-gray-500">1D%</th></tr></thead><tbody><template x-for="comp in (competitorData?competitorData.competitors||[]:[])" :key="comp.ticker"><tr class="border-b border-gray-800/50"><td class="p-2 font-semibold text-brand-400" x-text="comp.ticker"></td><td class="p-2 text-right font-mono text-white" x-text="comp.price?'$'+comp.price.toFixed(2):'—'"></td><td class="p-2 text-right font-mono text-gray-400" x-text="comp.market_cap?'$'+(comp.market_cap/1e9).toFixed(1)+'B':'—'"></td><td class="p-2 text-right font-mono text-gray-400" x-text="comp.pe_ratio?comp.pe_ratio.toFixed(1):'—'"></td><td class="p-2 text-right font-mono" :class="comp.change_1d_pct>=0?'text-success-400':'text-danger-400'" x-text="comp.change_1d_pct!=null?(comp.change_1d_pct>=0?'+':'')+comp.change_1d_pct.toFixed(2)+'%':'—'"></td></tr></template></tbody></table></div>
+        </div>
+        <!-- Economic Calendar -->
+        <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
+          <div class="flex items-center justify-between mb-3"><h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Economic Calendar</h3><div class="flex gap-2"><button @click="loadEconomicCalendar()" class="px-3 py-1.5 rounded-lg bg-surface-elevated text-gray-400 hover:text-white text-xs font-medium transition-colors">Refresh</button><button @click="seedEconomicCalendar()" class="px-3 py-1.5 rounded-lg bg-surface-elevated text-gray-400 hover:text-white text-xs font-medium transition-colors">Seed Dates</button></div></div>
+          <div x-show="econCalendar&&econCalendar.length>0" class="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
+            <template x-for="ev in econCalendar" :key="ev.id"><div class="p-3 rounded-lg bg-surface-elevated flex items-center justify-between"><div><p class="text-sm font-medium text-white" x-text="ev.title"></p><p class="text-xs text-gray-500" x-text="ev.date+(ev.category?' · '+ev.category:'')"></p></div><span class="px-2 py-0.5 rounded text-xs font-semibold" :class="ev.importance==='high'?'bg-danger-500/20 text-danger-400':ev.importance==='medium'?'bg-warn-500/20 text-warn-400':'bg-gray-500/20 text-gray-400'" x-text="ev.importance"></span></div></template>
+          </div>
+          <p x-show="!econCalendar||econCalendar.length===0" class="text-sm text-gray-500">No events yet. Hit "Seed Dates" to add FOMC, CPI, jobs dates.</p>
+        </div>
+      </div>
+    </template>
+
+    <!-- ===== PICKS TAB ===== -->
+    <template x-if="activeTab === 'picks'">
+      <div>
+        <!-- Sell Signals for Current Positions -->
+        <div class="mb-8">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-white">Your Positions — Hold or Sell?</h2>
+            <button @click="loadSellSignals()" :disabled="sellSignalsLoading"
+                    class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm rounded-lg disabled:opacity-50">
+              <span x-show="!sellSignalsLoading">Refresh</span>
+              <span x-show="sellSignalsLoading">Analyzing...</span>
+            </button>
+          </div>
+          <div x-show="sellSignalsLoading" class="flex justify-center py-8">
+            <svg class="animate-spin h-8 w-8 text-brand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+          </div>
+          <div x-show="sellSignals && sellSignals.signals && sellSignals.signals.length > 0" class="space-y-3">
+            <template x-for="sig in (sellSignals ? sellSignals.signals : [])" :key="'ss-'+sig.ticker">
+              <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="flex items-center gap-3">
+                    <button @click="searchTicker = sig.ticker; activeTab = 'analysis'; analyzeStock()"
+                            class="font-bold text-brand-400 hover:text-brand-300 text-lg" x-text="sig.ticker"></button>
+                    <span class="px-2 py-0.5 rounded-full text-xs font-bold"
+                          :class="sig.action === 'SELL' ? 'bg-danger-500/20 text-danger-400' : sig.action === 'TRIM' ? 'bg-warn-500/20 text-warn-400' : 'bg-success-500/20 text-success-400'"
+                          x-text="sig.action"></span>
+                    <span class="text-xs text-gray-500">Urgency: <span class="font-mono" x-text="sig.urgency + '/5'"></span></span>
+                  </div>
+                  <div class="text-right">
+                    <span class="font-mono text-sm" :class="sig.current_pnl_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                          x-text="(sig.current_pnl_pct >= 0 ? '+' : '') + sig.current_pnl_pct.toFixed(1) + '% P&L'"></span>
+                  </div>
+                </div>
+                <div x-show="sig.factors && sig.factors.length > 0" class="flex flex-wrap gap-1.5 mb-2">
+                  <template x-for="f in sig.factors" :key="f">
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-surface-floating text-gray-400" x-text="f"></span>
+                  </template>
+                </div>
+                <p class="text-sm text-gray-300 leading-relaxed" x-text="sig.ai_reasoning"></p>
+              </div>
+            </template>
+          </div>
+          <p x-show="!sellSignalsLoading && (!sellSignals || !sellSignals.signals || sellSignals.signals.length === 0)" class="text-sm text-gray-500 p-4">
+            No positions to analyze. Sync your eToro portfolio first.
+          </p>
+        </div>
+
+        <!-- Stock Recommendations -->
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-white">Stock Picks</h2>
+              <p class="text-xs text-gray-500 mt-0.5">Stocks with highest upside potential from ~100 eToro-tradable tickers</p>
+            </div>
+            <button @click="scanRecommendations()" :disabled="recsScanning"
+                    class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm rounded-lg disabled:opacity-50">
+              <span x-show="!recsScanning">Scan Now</span>
+              <span x-show="recsScanning">Scanning...</span>
+            </button>
+          </div>
+          <div x-show="recsScanning" class="p-6 rounded-xl bg-surface-raised text-center">
+            <svg class="animate-spin h-8 w-8 text-brand-400 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <p class="text-sm text-gray-400">Screening ~100 stocks... this takes a minute or two.</p>
+          </div>
+          <div x-show="!recsScanning && recsData && recsData.picks && recsData.picks.length > 0">
+            <p class="text-xs text-gray-500 mb-3" x-show="recsData && recsData.scanned_at">
+              Last scan: <span x-text="recsData.scanned_at"></span> &mdash; <span x-text="recsData.total_scanned"></span> stocks screened
+            </p>
+            <div class="space-y-3">
+              <template x-for="(pick, idx) in (recsData ? recsData.picks : [])" :key="'rec-'+pick.ticker">
+                <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-3">
+                      <span class="text-xs font-bold text-gray-500 w-5" x-text="'#' + (idx+1)"></span>
+                      <button @click="searchTicker = pick.ticker; activeTab = 'analysis'; analyzeStock()"
+                              class="font-bold text-brand-400 hover:text-brand-300 text-lg" x-text="pick.ticker"></button>
+                      <span class="text-sm text-gray-400" x-text="pick.name"></span>
+                    </div>
+                    <span class="font-mono text-white" x-text="'$' + pick.price.toFixed(2)"></span>
+                  </div>
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-xs">
+                    <div class="p-2 rounded-lg bg-surface-elevated">
+                      <span class="text-gray-500 block">+10% in 30d</span>
+                      <span class="font-mono font-bold" :class="pick.score_30d >= 60 ? 'text-success-400' : pick.score_30d >= 40 ? 'text-warn-400' : 'text-gray-400'"
+                            x-text="pick.score_30d.toFixed(0) + '%'"></span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-surface-elevated">
+                      <span class="text-gray-500 block">+50% in 6m</span>
+                      <span class="font-mono font-bold" :class="pick.score_6m >= 50 ? 'text-success-400' : pick.score_6m >= 30 ? 'text-warn-400' : 'text-gray-400'"
+                            x-text="pick.score_6m.toFixed(0) + '%'"></span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-surface-elevated">
+                      <span class="text-gray-500 block">RSI</span>
+                      <span class="font-mono" :class="pick.rsi < 35 ? 'text-success-400' : pick.rsi > 65 ? 'text-danger-400' : 'text-white'"
+                            x-text="pick.rsi ? pick.rsi.toFixed(0) : '—'"></span>
+                    </div>
+                    <div class="p-2 rounded-lg bg-surface-elevated">
+                      <span class="text-gray-500 block">Vol ratio</span>
+                      <span class="font-mono text-white" x-text="pick.volume_ratio ? pick.volume_ratio.toFixed(1) + 'x' : '—'"></span>
+                    </div>
+                  </div>
+                  <p class="text-sm text-gray-300 leading-relaxed" x-text="pick.ai_reasoning"></p>
+                </div>
+              </template>
+            </div>
+          </div>
+          <p x-show="!recsScanning && (!recsData || !recsData.picks || recsData.picks.length === 0)" class="text-sm text-gray-500 p-4">
+            No recommendations yet. Hit "Scan Now" to screen ~100 stocks.
+          </p>
+        </div>
+      </div>
+    </template>
+
+    <!-- Empty state for analysis -->
+    <div x-show="!data && !loading && activeTab === 'analysis'" class="text-center py-20">
+      <p class="text-gray-500 text-lg">Type a ticker above to get started</p>
+      <p class="text-gray-600 text-sm mt-2">AAPL, MSFT, TSLA, SPY, QQQ all work</p>
+      <p class="text-gray-600 text-xs mt-3">Press <kbd class="px-1.5 py-0.5 rounded bg-surface-elevated text-gray-400 font-mono">/</kbd> to focus search</p>
+    </div>
+
+    <!-- ===== STOCK DETAIL MODAL ===== -->
+    <div x-show="stockModal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="closeStockModal()" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)">
+      <div x-show="stockModal" x-transition class="w-full max-w-lg rounded-2xl bg-surface-raised shadow-card p-6 relative">
+        <button @click="closeStockModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg">&times;</button>
+        <template x-if="stockModal">
+          <div>
+            <div class="flex items-center gap-3 mb-4">
+              <h3 class="text-xl font-bold text-white" x-text="stockModal.ticker"></h3>
+              <span x-show="stockModal.quote" class="text-sm text-gray-400" x-text="stockModal.quote?.name || ''"></span>
+            </div>
+
+            <!-- Daily change -->
+            <div x-show="stockModalLoading" class="py-8 text-center">
+              <svg class="animate-spin h-6 w-6 text-brand-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            </div>
+            <div x-show="!stockModalLoading && stockModal.quote" class="space-y-4">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="p-3 rounded-xl bg-surface-elevated">
+                  <p class="text-[10px] text-gray-500 uppercase mb-1">Price</p>
+                  <p class="text-lg font-bold font-mono text-white" x-text="stockModal.quote ? '$' + stockModal.quote.price.toFixed(2) : ''"></p>
+                </div>
+                <div class="p-3 rounded-xl bg-surface-elevated">
+                  <p class="text-[10px] text-gray-500 uppercase mb-1">Today's Change</p>
+                  <p class="text-lg font-bold font-mono"
+                     :class="stockModal.quote && stockModal.quote.change >= 0 ? 'text-success-400' : 'text-danger-400'"
+                     x-text="stockModal.quote ? (stockModal.quote.change >= 0 ? '+' : '') + stockModal.quote.change.toFixed(2) + ' (' + (stockModal.quote.change_pct >= 0 ? '+' : '') + stockModal.quote.change_pct.toFixed(2) + '%)' : ''"></p>
+                </div>
+              </div>
+
+              <!-- Position info if in portfolio -->
+              <div x-show="stockModal.group" class="p-3 rounded-xl bg-surface-elevated">
+                <p class="text-[10px] text-gray-500 uppercase mb-2">Your Position</p>
+                <div class="grid grid-cols-3 gap-2 text-sm">
+                  <div>
+                    <p class="text-gray-500 text-[10px]">Shares</p>
+                    <p class="font-mono text-white" x-text="stockModal.group ? stockModal.group.total_shares.toFixed(2) : ''"></p>
+                  </div>
+                  <div>
+                    <p class="text-gray-500 text-[10px]">Value</p>
+                    <p class="font-mono text-white" x-text="stockModal.group ? '€' + stockModal.group.total_value.toFixed(2) : ''"></p>
+                  </div>
+                  <div>
+                    <p class="text-gray-500 text-[10px]">Total P&L</p>
+                    <p class="font-mono font-semibold"
+                       :class="stockModal.group && stockModal.group.pnl >= 0 ? 'text-success-400' : 'text-danger-400'"
+                       x-text="stockModal.group ? (stockModal.group.pnl >= 0 ? '+€' : '-€') + Math.abs(stockModal.group.pnl).toFixed(2) : ''"></p>
+                  </div>
+                </div>
+                <!-- Daily P&L on position -->
+                <div x-show="stockModal.quote && stockModal.group" class="mt-3 pt-3 border-t border-gray-700/50">
+                  <div class="flex justify-between items-center">
+                    <span class="text-[10px] text-gray-500 uppercase">Today's P&L on Position</span>
+                    <span class="font-mono font-bold text-sm"
+                          :class="stockModal.quote && stockModal.quote.change_pct >= 0 ? 'text-success-400' : 'text-danger-400'"
+                          x-text="stockModal.quote && stockModal.group ? (stockModal.quote.change_pct >= 0 ? '+€' : '-€') + Math.abs(stockModal.group.total_value * (stockModal.quote.change_pct / 100)).toFixed(2) : ''"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick stats -->
+              <div class="grid grid-cols-3 gap-2 text-xs">
+                <div class="p-2 rounded-lg bg-surface-elevated text-center">
+                  <p class="text-gray-500">Volume</p>
+                  <p class="font-mono text-white" x-text="stockModal.quote ? (stockModal.quote.volume / 1e6).toFixed(1) + 'M' : ''"></p>
+                </div>
+                <div class="p-2 rounded-lg bg-surface-elevated text-center">
+                  <p class="text-gray-500">Mkt Cap</p>
+                  <p class="font-mono text-white" x-text="stockModal.quote && stockModal.quote.market_cap ? (stockModal.quote.market_cap / 1e9).toFixed(1) + 'B' : '—'"></p>
+                </div>
+                <div class="p-2 rounded-lg bg-surface-elevated text-center">
+                  <p class="text-gray-500">P/E</p>
+                  <p class="font-mono text-white" x-text="stockModal.quote && stockModal.quote.pe_ratio ? stockModal.quote.pe_ratio.toFixed(1) : '—'"></p>
+                </div>
+              </div>
+
+              <button @click="searchTicker = stockModal.ticker; closeStockModal(); activeTab = 'analysis'; analyzeStock()"
+                      class="w-full py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none active:scale-95">
+                Full Analysis
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== APP LOGIC ===== -->
+  <script>
+    function loginGate() {
+      return {
+        authenticated: !!localStorage.getItem('auth_token'),
+        email: '',
+        password: '',
+        error: '',
+        loggingIn: false,
+        async login() {
+          this.error = '';
+          this.loggingIn = true;
+          try {
+            const r = await _origFetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: this.email, password: this.password }),
+            });
+            if (!r.ok) {
+              const d = await r.json();
+              this.error = d.detail || 'Login failed';
+              return;
+            }
+            const d = await r.json();
+            localStorage.setItem('auth_token', d.token);
+            this.authenticated = true;
+          } catch (e) {
+            this.error = 'Connection error';
+          } finally {
+            this.loggingIn = false;
+          }
+        }
+      };
+    }
+
+    function app() {
+      return {
+        searchTicker: '',
+        loading: false,
+        error: '',
+        data: null,
+        newsData: null,
+        portfolio: null,
+        activeTab: 'dashboard',
+        showSettings: false,
+        settings: { account_size: 10000, risk_pct: 2.5 },
+        chart: null,
+        // Chart state
+        chartTimeframe: '3M',
+        chartIndicator: 'RSI',
+        priceChart: null,
+        volumeChart: null,
+        indicatorChart: null,
+        // Watchlist state
+        watchlist: [],
+        watchlistLoading: false,
+        watchlistTicker: '',
+        etoroConnected: false,
+        syncing: false,
+        syncError: '',
+        syncSuccess: '',
+        lastSyncTime: '',
+        // Screener state
+        screenerStatus: 'empty',
+        screenerPicks: [],
+        screenerScanning: false,
+        screenerProgress: 0,
+        // Journal state
+        journal: { trades: [], stats: {} },
+        journalLoading: false,
+        // Backtest state
+        backtestResult: null,
+        backtestLoading: false,
+        // Market state
+        marketData: null,
+        marketLoading: false,
+        // Alerts state
+        alerts: [],
+        alertTicker: '',
+        alertCondition: 'above',
+        alertPrice: '',
+        triggeredAlerts: [],
+        // Portfolio Analytics state
+        riskTab: 'allocation',
+        riskLoading: false,
+        allocationData: null,
+        correlationData: null,
+        betaData: null,
+        pnlHistoryData: null,
+        dividendData: null,
+        taxLotData: null,
+        agingData: null,
+        rebalanceData: null,
+        exposureData: null,
+        pnlBreakdownData: null,
+        _allocationChart: null,
+        _pnlHistoryChart: null,
+        expandedTaxLot: null,
+        // Theme state
+        darkMode: true,
+        // Mobile nav
+        mobileNav: false,
+        // Paper trading state
+        paperAccount: null,
+        paperTradeTicker: '',
+        paperTradeShares: 10,
+        paperTradeDir: 'BUY',
+        // Trailing stop state
+        trailingStopTicker: '',
+        trailingStopData: null,
+        // Options state
+        optionsTicker: '',
+        optionsData: null,
+        optionsChain: null,
+        optionsExpiry: '',
+        // Risk/reward state
+        rrTicker: '',
+        rrData: null,
+        // Research state
+        earningsData: null,
+        analystTicker: '',
+        analystData: null,
+        sentimentTicker: '',
+        sentimentData: null,
+        competitorTicker: '',
+        competitorData: null,
+        econCalendar: null,
+        // Stock detail modal
+        stockModal: null,
+        stockModalLoading: false,
+        // Picks state
+        recsData: null,
+        recsLoading: false,
+        recsScanning: false,
+        sellSignals: null,
+        sellSignalsLoading: false,
+
+        async init() {
+          // Restore theme from localStorage
+          const savedTheme = localStorage.getItem('stock-theme');
+          if (savedTheme === 'light') {
+            this.darkMode = false;
+            document.documentElement.classList.remove('dark');
+          }
+          // Skip API calls if not logged in
+          if (!localStorage.getItem('auth_token')) return;
+          await this.loadSettings();
+          await this.loadPortfolio();
+          await this.checkEtoroStatus();
+          this.loadWatchlist();
+          this.loadScreenerResults();
+          this.loadJournal();
+          setInterval(() => this.loadWatchlist(), 60000);
+          setInterval(() => this.checkAlerts(), 60000);
+          // Request notification permission
+          if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+          }
+        },
+
+        // Theme toggle
+        toggleTheme() {
+          this.darkMode = !this.darkMode;
+          if (this.darkMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('stock-theme', 'dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('stock-theme', 'light');
+          }
+        },
+
+        // Keyboard shortcuts
+        handleKeydown(e) {
+          // Don't fire if typing in input/textarea
+          const tag = e.target.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+          const tabMap = { '1': 'dashboard', '2': 'analysis', '3': 'portfolio', '4': 'watchlist', '5': 'screener', '6': 'journal', '7': 'market', '8': 'trading', '9': 'research', '0': 'picks' };
+
+          if (e.key === '/' || (e.key === 'k' && (e.ctrlKey || e.metaKey))) {
+            e.preventDefault();
+            const searchInput = document.querySelector('input[x-model="searchTicker"]');
+            if (searchInput) { searchInput.focus(); this.activeTab = 'analysis'; }
+          } else if (tabMap[e.key]) {
+            e.preventDefault();
+            this.activeTab = tabMap[e.key];
+          } else if (e.key === 't' || e.key === 'T') {
+            this.toggleTheme();
+          }
+        },
+
+        // CSV export
+        exportCSV(type) {
+          let rows = [];
+          let filename = '';
+
+          if (type === 'portfolio' && this.portfolio) {
+            rows = [['Ticker','Shares','Avg Cost','Current Price','Market Value','P&L','P&L %']];
+            this.portfolio.holdings.forEach(h => {
+              rows.push([h.ticker, h.shares, h.avg_cost.toFixed(2), h.current_price.toFixed(2), h.market_value.toFixed(2), h.pnl.toFixed(2), h.pnl_pct.toFixed(2)]);
+            });
+            filename = 'portfolio.csv';
+          } else if (type === 'journal') {
+            rows = [['Ticker','Direction','Entry Price','Exit Price','Shares','P&L','P&L %','Status','Date','Notes']];
+            this.journal.trades.forEach(t => {
+              rows.push([t.ticker, t.direction, t.entry_price.toFixed(2), t.exit_price ? t.exit_price.toFixed(2) : '', t.shares, t.pnl != null ? t.pnl.toFixed(2) : '', t.pnl_pct != null ? t.pnl_pct.toFixed(2) : '', t.status, t.entry_date, t.notes]);
+            });
+            filename = 'journal.csv';
+          } else if (type === 'screener') {
+            rows = [['Ticker','Name','Price','5D Change%','Score','Signal','Volume Ratio','AI Thesis']];
+            this.screenerPicks.forEach(p => {
+              rows.push([p.ticker, p.name, p.price.toFixed(2), p.change_5d_pct.toFixed(2), p.screener_score.toFixed(0), p.signal_direction, p.volume_ratio.toFixed(1), p.ai_thesis || '']);
+            });
+            filename = 'screener.csv';
+          }
+
+          if (rows.length <= 1) return;
+          const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+          const blob = new Blob([csv], { type: 'text/csv' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+
+        // ===== Paper Trading Methods =====
+        async loadPaperAccount() {
+          try { const r = await fetch('/api/paper-trading/account'); if (r.ok) this.paperAccount = await r.json(); } catch(e) {}
+        },
+        async executePaperTrade() {
+          if (!this.paperTradeTicker.trim()) return;
+          try {
+            await fetch('/api/paper-trading/trade', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ticker: this.paperTradeTicker.trim().toUpperCase(), direction: this.paperTradeDir, shares: this.paperTradeShares }) });
+            this.paperTradeTicker = '';
+            await this.loadPaperAccount();
+          } catch(e) {}
+        },
+        async closePaperTrade(id) {
+          try { await fetch('/api/paper-trading/' + id + '/close', { method: 'POST' }); await this.loadPaperAccount(); } catch(e) {}
+        },
+        async resetPaperAccount() {
+          try { await fetch('/api/paper-trading/reset', { method: 'POST' }); await this.loadPaperAccount(); } catch(e) {}
+        },
+
+        // ===== Trailing Stop Methods =====
+        async loadTrailingStops() {
+          if (!this.trailingStopTicker.trim()) return;
+          try { const r = await fetch('/api/trailing-stop/' + this.trailingStopTicker.trim().toUpperCase() + '/levels'); if (r.ok) this.trailingStopData = await r.json(); } catch(e) {}
+        },
+
+        // ===== Options Methods =====
+        async loadOptionsChain() {
+          if (!this.optionsTicker.trim()) return;
+          const t = this.optionsTicker.trim().toUpperCase();
+          try {
+            const [expRes, chainRes] = await Promise.all([fetch('/api/options/' + t + '/expirations'), fetch('/api/options/' + t + '/chain')]);
+            if (expRes.ok) { const d = await expRes.json(); this.optionsData = d; }
+            if (chainRes.ok) { this.optionsChain = await chainRes.json(); if (this.optionsChain.expiry) this.optionsExpiry = this.optionsChain.expiry; }
+          } catch(e) {}
+        },
+        async loadOptionsChainExpiry(exp) {
+          this.optionsExpiry = exp;
+          try { const r = await fetch('/api/options/' + this.optionsTicker.trim().toUpperCase() + '/chain?expiry=' + exp); if (r.ok) this.optionsChain = await r.json(); } catch(e) {}
+        },
+
+        // ===== Risk/Reward Methods =====
+        async loadAutoRiskReward() {
+          if (!this.rrTicker.trim()) return;
+          try { const r = await fetch('/api/risk-reward/' + this.rrTicker.trim().toUpperCase() + '/auto'); if (r.ok) this.rrData = await r.json(); } catch(e) {}
+        },
+
+        // ===== Research Methods =====
+        async loadEarnings() {
+          try { const r = await fetch('/api/earnings/portfolio'); if (r.ok) { const d = await r.json(); this.earningsData = d.earnings || d; } } catch(e) {}
+        },
+        async loadAnalystRatings() {
+          if (!this.analystTicker.trim()) return;
+          try { const r = await fetch('/api/analyst-ratings/' + this.analystTicker.trim().toUpperCase()); if (r.ok) this.analystData = await r.json(); } catch(e) {}
+        },
+        async loadSentiment() {
+          if (!this.sentimentTicker.trim()) return;
+          try { const r = await fetch('/api/sentiment/' + this.sentimentTicker.trim().toUpperCase()); if (r.ok) this.sentimentData = await r.json(); } catch(e) {}
+        },
+        async loadCompetitors() {
+          if (!this.competitorTicker.trim()) return;
+          try { const r = await fetch('/api/competitors/' + this.competitorTicker.trim().toUpperCase()); if (r.ok) this.competitorData = await r.json(); } catch(e) {}
+        },
+        async loadEconomicCalendar() {
+          try { const r = await fetch('/api/economic-calendar/upcoming?days=60'); if (r.ok) { const d = await r.json(); this.econCalendar = d.events || d; } } catch(e) {}
+        },
+        async seedEconomicCalendar() {
+          try { await fetch('/api/economic-calendar/seed', { method: 'POST' }); await this.loadEconomicCalendar(); } catch(e) {}
+        },
+
+        // ===== Stock Detail Modal =====
+        async openStockModal(ticker) {
+          this.stockModalLoading = true;
+          this.stockModal = { ticker, quote: null, group: null };
+          // Find the group data from portfolio
+          if (this.portfolio && this.portfolio.groups) {
+            this.stockModal.group = this.portfolio.groups.find(g => g.ticker === ticker);
+          }
+          try {
+            const r = await fetch(`/api/stocks/${ticker}`);
+            if (r.ok) {
+              const d = await r.json();
+              this.stockModal.quote = d.quote;
+            }
+          } catch(e) {} finally { this.stockModalLoading = false; }
+        },
+        closeStockModal() { this.stockModal = null; },
+
+        // ===== Picks Methods =====
+        async loadRecommendations() {
+          this.recsLoading = true;
+          try {
+            const r = await fetch('/api/recommendations/');
+            if (r.ok) this.recsData = await r.json();
+          } catch(e) {} finally { this.recsLoading = false; }
+        },
+        async scanRecommendations() {
+          this.recsScanning = true;
+          try {
+            await fetch('/api/recommendations/scan', { method: 'POST' });
+            // Poll until ready
+            const poll = setInterval(async () => {
+              const r = await fetch('/api/recommendations/');
+              if (r.ok) {
+                const d = await r.json();
+                this.recsData = d;
+                if (d.status === 'ready' || d.status === 'empty') {
+                  clearInterval(poll);
+                  this.recsScanning = false;
+                }
+              }
+            }, 5000);
+          } catch(e) { this.recsScanning = false; }
+        },
+        async loadSellSignals() {
+          this.sellSignalsLoading = true;
+          try {
+            const r = await fetch('/api/sell-signals/');
+            if (r.ok) this.sellSignals = await r.json();
+          } catch(e) {} finally { this.sellSignalsLoading = false; }
+        },
+
+        async loadSettings() {
+          try {
+            const res = await fetch('/api/portfolio/settings');
+            if (res.ok) this.settings = await res.json();
+          } catch(e) {}
+        },
+
+        async saveSettings() {
+          try {
+            await fetch('/api/portfolio/settings', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(this.settings),
+            });
+          } catch(e) {}
+        },
+
+        async loadPortfolio() {
+          try {
+            const res = await fetch('/api/portfolio');
+            if (res.ok) this.portfolio = await res.json();
+          } catch(e) {}
+        },
+
+        async analyzeStock() {
+          const ticker = this.searchTicker.trim().toUpperCase();
+          if (!ticker) return;
+          this.error = '';
+          this.loading = true;
+          this.data = null;
+          this.newsData = null;
+
+          try {
+            // Fetch signal and news in parallel
+            const [signalRes, newsRes] = await Promise.all([
+              fetch(`/api/signals/${ticker}?account_size=${this.settings.account_size}&risk_pct=${this.settings.risk_pct}`),
+              fetch(`/api/news/${ticker}`),
+            ]);
+
+            if (!signalRes.ok) {
+              const err = await signalRes.json();
+              throw new Error(err.detail || 'Failed to analyze stock');
+            }
+
+            this.data = await signalRes.json();
+            if (newsRes.ok) this.newsData = await newsRes.json();
+
+            this.$nextTick(() => this.fetchChartData(this.chartTimeframe));
+          } catch(e) {
+            this.error = e.message;
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async fetchChartData(tf) {
+          this.chartTimeframe = tf;
+          if (!this.data) return;
+          try {
+            const res = await fetch(`/api/stocks/${this.data.quote.ticker}/chart?timeframe=${tf}`);
+            const data = await res.json();
+            this.renderAllCharts(data);
+          } catch(e) {
+            console.error('Chart fetch failed:', e);
+          }
+        },
+
+        renderAllCharts(data) {
+          if (this.priceChart) this.priceChart.destroy();
+          if (this.volumeChart) this.volumeChart.destroy();
+          if (this.indicatorChart) this.indicatorChart.destroy();
+
+          const priceCanvas = document.getElementById('priceCanvas');
+          const volumeCanvas = document.getElementById('volumeCanvas');
+          const indicatorCanvas = document.getElementById('indicatorCanvas');
+          if (!priceCanvas || !data) return;
+
+          const timestamps = (data.timestamps || []).map(t => new Date(t).getTime());
+          const ohlc = timestamps.map((t, i) => ({
+            x: t,
+            o: data.ohlcv.open[i],
+            h: data.ohlcv.high[i],
+            l: data.ohlcv.low[i],
+            c: data.ohlcv.close[i],
+          }));
+
+          const candleColors = ohlc.map(c => c.c >= c.o ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)');
+          const candleBorderColors = ohlc.map(c => c.c >= c.o ? 'rgba(34,197,94,1)' : 'rgba(239,68,68,1)');
+
+          const priceDatasets = [
+            {
+              label: 'Price',
+              type: 'candlestick',
+              data: ohlc,
+              color: { up: 'rgba(34,197,94,1)', down: 'rgba(239,68,68,1)', unchanged: '#6b7280' },
+              borderColor: { up: 'rgba(34,197,94,1)', down: 'rgba(239,68,68,1)', unchanged: '#6b7280' },
+            },
+          ];
+
+          if (data.indicators && data.indicators.bb_upper_history) {
+            priceDatasets.push({
+              label: 'BB Upper',
+              type: 'line',
+              data: timestamps.map((t, i) => ({ x: t, y: data.indicators.bb_upper_history[i] })),
+              borderColor: 'rgba(107,114,128,0.4)',
+              borderWidth: 1,
+              borderDash: [4,4],
+              pointRadius: 0,
+              fill: false,
+            });
+          }
+          if (data.indicators && data.indicators.bb_lower_history) {
+            priceDatasets.push({
+              label: 'BB Lower',
+              type: 'line',
+              data: timestamps.map((t, i) => ({ x: t, y: data.indicators.bb_lower_history[i] })),
+              borderColor: 'rgba(107,114,128,0.4)',
+              borderWidth: 1,
+              borderDash: [4,4],
+              pointRadius: 0,
+              fill: false,
+            });
+          }
+          if (data.indicators && data.indicators.sma_20_history) {
+            priceDatasets.push({
+              label: 'SMA 20',
+              type: 'line',
+              data: timestamps.map((t, i) => ({ x: t, y: data.indicators.sma_20_history[i] })),
+              borderColor: 'rgba(250,204,21,0.8)',
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: false,
+            });
+          }
+          if (data.indicators && data.indicators.sma_50_history) {
+            priceDatasets.push({
+              label: 'SMA 50',
+              type: 'line',
+              data: timestamps.map((t, i) => ({ x: t, y: data.indicators.sma_50_history[i] })),
+              borderColor: 'rgba(96,165,250,0.8)',
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: false,
+            });
+          }
+
+          // Price chart (candlestick)
+          this.priceChart = new Chart(priceCanvas, {
+            type: 'candlestick',
+            data: { datasets: priceDatasets },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { intersect: false, mode: 'index' },
+              plugins: {
+                legend: { display: true, position: 'top', labels: { color: '#9ca3af', font: { size: 10 }, boxWidth: 12 } },
+              },
+              scales: {
+                x: {
+                  type: 'time',
+                  adapters: { date: { zone: 'UTC' } },
+                  grid: { color: 'rgba(255,255,255,0.05)' },
+                  ticks: { color: '#6b7280', maxTicksLimit: 10, font: { size: 10 } },
+                },
+                y: {
+                  position: 'right',
+                  grid: { color: 'rgba(255,255,255,0.05)' },
+                  ticks: { color: '#6b7280', font: { size: 10 } },
+                },
+              },
+            },
+          });
+
+          // Volume chart
+          if (volumeCanvas && data.ohlcv && data.ohlcv.volume) {
+            const volumeColors = ohlc.map(c => c.c >= c.o ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)');
+            this.volumeChart = new Chart(volumeCanvas, {
+              type: 'bar',
+              data: {
+                labels: timestamps,
+                datasets: [{
+                  label: 'Volume',
+                  data: data.ohlcv.volume,
+                  backgroundColor: volumeColors,
+                  borderWidth: 0,
+                }],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                  x: {
+                    type: 'time',
+                    adapters: { date: { zone: 'UTC' } },
+                    display: false,
+                  },
+                  y: {
+                    position: 'right',
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#6b7280', font: { size: 9 }, callback: v => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v },
+                  },
+                },
+              },
+            });
+          }
+
+          // Indicator chart
+          if (indicatorCanvas) {
+            if (this.chartIndicator === 'RSI' && data.indicators && data.indicators.rsi_history) {
+              this.indicatorChart = new Chart(indicatorCanvas, {
+                type: 'line',
+                data: {
+                  labels: timestamps,
+                  datasets: [
+                    {
+                      label: 'RSI',
+                      data: data.indicators.rsi_history,
+                      borderColor: 'rgba(168,85,247,0.9)',
+                      borderWidth: 1.5,
+                      pointRadius: 0,
+                      fill: false,
+                    },
+                    {
+                      label: 'Overbought (70)',
+                      data: timestamps.map(() => 70),
+                      borderColor: 'rgba(239,68,68,0.4)',
+                      borderWidth: 1,
+                      borderDash: [4,4],
+                      pointRadius: 0,
+                      fill: false,
+                    },
+                    {
+                      label: 'Oversold (30)',
+                      data: timestamps.map(() => 30),
+                      borderColor: 'rgba(34,197,94,0.4)',
+                      borderWidth: 1,
+                      borderDash: [4,4],
+                      pointRadius: 0,
+                      fill: '-1',
+                      backgroundColor: 'rgba(107,114,128,0.05)',
+                    },
+                  ],
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: {
+                      type: 'time',
+                      adapters: { date: { zone: 'UTC' } },
+                      display: false,
+                    },
+                    y: {
+                      min: 0, max: 100,
+                      position: 'right',
+                      grid: { color: 'rgba(255,255,255,0.05)' },
+                      ticks: { color: '#6b7280', font: { size: 9 }, stepSize: 10 },
+                    },
+                  },
+                },
+              });
+            } else if (this.chartIndicator === 'MACD' && data.indicators && data.indicators.macd_history) {
+              const macdHist = data.indicators.macd_hist_history || [];
+              const histColors = macdHist.map(v => v >= 0 ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)');
+              this.indicatorChart = new Chart(indicatorCanvas, {
+                type: 'bar',
+                data: {
+                  labels: timestamps,
+                  datasets: [
+                    {
+                      label: 'Histogram',
+                      type: 'bar',
+                      data: macdHist,
+                      backgroundColor: histColors,
+                      borderWidth: 0,
+                      order: 2,
+                    },
+                    {
+                      label: 'MACD',
+                      type: 'line',
+                      data: data.indicators.macd_history,
+                      borderColor: 'rgba(96,165,250,0.9)',
+                      borderWidth: 1.5,
+                      pointRadius: 0,
+                      fill: false,
+                      order: 1,
+                    },
+                    {
+                      label: 'Signal',
+                      type: 'line',
+                      data: data.indicators.macd_signal_history || [],
+                      borderColor: 'rgba(251,146,60,0.9)',
+                      borderWidth: 1.5,
+                      pointRadius: 0,
+                      fill: false,
+                      order: 1,
+                    },
+                  ],
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: true, position: 'top', labels: { color: '#9ca3af', font: { size: 9 }, boxWidth: 10 } } },
+                  scales: {
+                    x: {
+                      type: 'time',
+                      adapters: { date: { zone: 'UTC' } },
+                      display: false,
+                    },
+                    y: {
+                      position: 'right',
+                      grid: { color: 'rgba(255,255,255,0.05)' },
+                      ticks: { color: '#6b7280', font: { size: 9 } },
+                    },
+                  },
+                },
+              });
+            }
+          }
+        },
+
+        async addToPortfolio() {
+          if (!this.data) return;
+          try {
+            await fetch('/api/portfolio/add', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({
+                ticker: this.data.quote.ticker,
+                shares: this.data.position.shares,
+                avg_cost: this.data.quote.price,
+              }),
+            });
+            await this.loadPortfolio();
+          } catch(e) {}
+        },
+
+        async removeFromPortfolio(ticker) {
+          try {
+            await fetch(`/api/portfolio/${ticker}`, { method: 'DELETE' });
+            await this.loadPortfolio();
+          } catch(e) {}
+        },
+
+        async checkEtoroStatus() {
+          try {
+            const res = await fetch('/api/etoro/status');
+            if (res.ok) {
+              const data = await res.json();
+              this.etoroConnected = data.connected;
+            }
+          } catch(e) {}
+        },
+
+        async loadWatchlist() {
+          this.watchlistLoading = true;
+          try {
+            const res = await fetch('/api/watchlist');
+            const data = await res.json();
+            this.watchlist = data.items || [];
+          } catch(e) { console.error(e); }
+          this.watchlistLoading = false;
+        },
+
+        async addToWatchlist() {
+          if (!this.watchlistTicker.trim()) return;
+          await fetch(`/api/watchlist/${this.watchlistTicker.trim()}`, { method: 'POST' });
+          this.watchlistTicker = '';
+          await this.loadWatchlist();
+        },
+
+        async removeFromWatchlist(ticker) {
+          await fetch(`/api/watchlist/${ticker}`, { method: 'DELETE' });
+          await this.loadWatchlist();
+        },
+
+        async syncEtoro() {
+          this.syncing = true;
+          this.syncError = '';
+          this.syncSuccess = '';
+          try {
+            const res = await fetch('/api/etoro/sync', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+              this.syncError = data.detail || 'Sync failed';
+              return;
+            }
+            this.syncSuccess = `Synced ${data.imported} positions from eToro`;
+            this.lastSyncTime = new Date().toLocaleTimeString();
+            await this.loadPortfolio();
+            setTimeout(() => this.syncSuccess = '', 5000);
+          } catch(e) {
+            this.syncError = e.message || 'Sync failed';
+          } finally {
+            this.syncing = false;
+          }
+        },
+
+        // Screener methods
+        async startScan() {
+          this.screenerScanning = true;
+          this.screenerProgress = 0;
+          await fetch('/api/screener/scan', { method: 'POST' });
+          this.pollScreener();
+        },
+
+        async pollScreener() {
+          const poll = async () => {
+            try {
+              const res = await fetch('/api/screener/results');
+              const data = await res.json();
+              this.screenerStatus = data.status;
+              this.screenerProgress = data.progress || 0;
+              if (data.status === 'ready') {
+                this.screenerPicks = data.picks || [];
+                this.screenerScanning = false;
+                return;
+              }
+              if (data.status === 'scanning') {
+                setTimeout(poll, 3000);
+              }
+            } catch(e) {
+              this.screenerScanning = false;
+            }
+          };
+          poll();
+        },
+
+        async loadScreenerResults() {
+          try {
+            const res = await fetch('/api/screener/results');
+            const data = await res.json();
+            this.screenerStatus = data.status;
+            this.screenerPicks = data.picks || [];
+          } catch(e) {}
+        },
+
+        // Journal methods
+        async loadJournal() {
+          this.journalLoading = true;
+          try {
+            const res = await fetch('/api/journal');
+            if (res.ok) this.journal = await res.json();
+          } catch(e) {}
+          this.journalLoading = false;
+        },
+
+        async logTradeFromAnalysis() {
+          if (!this.data) return;
+          try {
+            await fetch('/api/journal', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({
+                ticker: this.data.quote.ticker,
+                direction: this.data.signal.direction === 'SELL' ? 'SELL' : 'BUY',
+                entry_price: this.data.quote.price,
+                shares: this.data.position.shares,
+                notes: 'Signal: ' + this.data.signal.direction + ' @ ' + this.data.signal.confidence.toFixed(0) + '% confidence',
+              }),
+            });
+            await this.loadJournal();
+          } catch(e) {}
+        },
+
+        async deleteTrade(id) {
+          await fetch('/api/journal/' + id, { method: 'DELETE' });
+          await this.loadJournal();
+        },
+
+        // Backtest methods
+        async runBacktest() {
+          if (!this.data) return;
+          this.backtestLoading = true;
+          this.backtestResult = null;
+          try {
+            const res = await fetch('/api/backtest/' + this.data.quote.ticker + '?period=1y');
+            if (res.ok) {
+              this.backtestResult = await res.json();
+              this.$nextTick(() => this.renderEquityCurve());
+            }
+          } catch(e) {}
+          this.backtestLoading = false;
+        },
+
+        renderEquityCurve() {
+          const canvas = document.getElementById('equityCurveCanvas');
+          if (!canvas || !this.backtestResult) return;
+          if (this._equityChart) this._equityChart.destroy();
+          const eq = this.backtestResult.equity_curve;
+          this._equityChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+              labels: eq.map((_, i) => i),
+              datasets: [{
+                label: 'Equity',
+                data: eq,
+                borderColor: eq[eq.length-1] >= eq[0] ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)',
+                borderWidth: 1.5,
+                fill: true,
+                backgroundColor: eq[eq.length-1] >= eq[0] ? 'rgba(34,197,94,0.05)' : 'rgba(239,68,68,0.05)',
+                pointRadius: 0,
+              }],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { display: false },
+                y: { position: 'right', grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280', font: { size: 9 } } },
+              },
+            },
+          });
+        },
+
+        // Market methods
+        async loadMarketData() {
+          this.marketLoading = true;
+          try {
+            const res = await fetch('/api/market/overview');
+            if (res.ok) this.marketData = await res.json();
+          } catch(e) {}
+          this.marketLoading = false;
+        },
+
+        // Alert methods
+        async checkAlerts() {
+          try {
+            const res = await fetch('/api/alerts/check');
+            if (res.ok) {
+              const data = await res.json();
+              if (data.triggered && data.triggered.length > 0) {
+                this.triggeredAlerts = [...this.triggeredAlerts, ...data.triggered];
+                // Browser notification
+                if (Notification.permission === 'granted') {
+                  data.triggered.forEach(a => {
+                    new Notification('Price Alert: ' + a.ticker, {
+                      body: a.ticker + ' is ' + a.condition + ' $' + a.target_price.toFixed(2),
+                    });
+                  });
+                }
+              }
+            }
+          } catch(e) {}
+        },
+
+        // Portfolio Analytics methods
+        async loadRiskData(tab) {
+          this.riskTab = tab;
+          this.riskLoading = true;
+          const endpointMap = {
+            allocation: 'allocation', correlation: 'correlation', beta: 'beta',
+            pnlHistory: 'pnl-history', dividends: 'dividends', taxLots: 'tax-lots',
+            aging: 'aging', rebalance: 'rebalance', exposure: 'exposure', pnlBreakdown: 'pnl-breakdown',
+          };
+          const dataKeyMap = {
+            allocation: 'allocationData', correlation: 'correlationData', beta: 'betaData',
+            pnlHistory: 'pnlHistoryData', dividends: 'dividendData', taxLots: 'taxLotData',
+            aging: 'agingData', rebalance: 'rebalanceData', exposure: 'exposureData', pnlBreakdown: 'pnlBreakdownData',
+          };
+          try {
+            const res = await fetch(`/api/portfolio/analytics/${endpointMap[tab]}`);
+            if (!res.ok) throw new Error('Failed to load');
+            const data = await res.json();
+            this[dataKeyMap[tab]] = data;
+            await this.$nextTick();
+            if (tab === 'allocation') this.renderAllocationChart();
+            if (tab === 'pnlHistory') this.renderPnlHistoryChart();
+          } catch (e) {
+            console.error('Risk data error:', e);
+            this[dataKeyMap[tab]] = null;
+          } finally {
+            this.riskLoading = false;
+          }
+        },
+
+        renderAllocationChart() {
+          if (this._allocationChart) { this._allocationChart.destroy(); this._allocationChart = null; }
+          const canvas = document.getElementById('allocationCanvas');
+          if (!canvas || !this.allocationData?.items) return;
+          const labels = this.allocationData.items.map(h => h.ticker);
+          const values = this.allocationData.items.map(h => h.market_value);
+          const colors = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#06b6d4','#84cc16','#e11d48','#0ea5e9','#a855f7','#10b981'];
+          this._allocationChart = new Chart(canvas, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data: values, backgroundColor: colors.slice(0, labels.length), borderColor: '#0a0f1a', borderWidth: 2 }] },
+            options: {
+              responsive: true, maintainAspectRatio: true, cutout: '65%',
+              plugins: {
+                legend: { position: 'bottom', labels: { color: '#9ca3af', font: { family: 'Inter', size: 11 }, padding: 12, usePointStyle: true, pointStyleWidth: 8 } },
+                tooltip: { backgroundColor: '#1a2234', titleColor: '#fff', bodyColor: '#d1d5db', bodyFont: { family: 'JetBrains Mono' },
+                  callbacks: { label: ctx => ` ${ctx.label}: $${ctx.raw.toLocaleString(undefined, {minimumFractionDigits:2})} (${((ctx.raw / values.reduce((a,b)=>a+b,0)) * 100).toFixed(1)}%)` }
+                }
+              }
+            }
+          });
+        },
+
+        renderPnlHistoryChart() {
+          if (this._pnlHistoryChart) { this._pnlHistoryChart.destroy(); this._pnlHistoryChart = null; }
+          const canvas = document.getElementById('pnlHistoryCanvas');
+          if (!canvas || !this.pnlHistoryData?.snapshots) return;
+          const dates = this.pnlHistoryData.snapshots.map(s => s.date);
+          const values = this.pnlHistoryData.snapshots.map(s => s.total_pnl);
+          const lastVal = values[values.length - 1] || 0;
+          this._pnlHistoryChart = new Chart(canvas, {
+            type: 'line',
+            data: { labels: dates, datasets: [{
+              label: 'P&L', data: values,
+              borderColor: lastVal >= 0 ? '#22c55e' : '#ef4444',
+              backgroundColor: lastVal >= 0 ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+              fill: true, tension: 0.3, pointRadius: 0, pointHitRadius: 8, borderWidth: 2,
+            }] },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              interaction: { intersect: false, mode: 'index' },
+              scales: {
+                x: { ticks: { color: '#6b7280', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y: { ticks: { color: '#6b7280', font: { family: 'JetBrains Mono', size: 10 }, callback: v => (v >= 0 ? '+$' : '-$') + Math.abs(v).toLocaleString() }, grid: { color: 'rgba(255,255,255,0.04)' } }
+              },
+              plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a2234', titleColor: '#fff', bodyColor: '#d1d5db', bodyFont: { family: 'JetBrains Mono' },
+                callbacks: { label: ctx => ` P&L: ${ctx.raw >= 0 ? '+' : ''}$${ctx.raw.toFixed(2)}` } } }
+            }
+          });
+        },
+      };
+    }
+  </script>
+</body>
+</html>
