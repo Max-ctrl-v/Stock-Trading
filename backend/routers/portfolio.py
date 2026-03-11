@@ -84,10 +84,10 @@ async def get_portfolio():
 
         total_value += mv_eur
         total_cost += cost_eur
-        total_pnl_sum += pnl
+        total_pnl_sum += pnl_eur
 
-    # Always use computed total P&L from live prices
-    total_pnl_eur = round(total_pnl_sum * usd_to_eur, 2)
+    # Total P&L already in EUR (accumulated from per-position EUR values)
+    total_pnl_eur = round(total_pnl_sum, 2)
 
     total_pnl_pct = round((total_pnl_eur / total_cost) * 100, 2) if total_cost > 0 else 0
 
