@@ -6,9 +6,14 @@ router = APIRouter()
 
 
 @router.get("/{ticker}", response_model=BacktestResult)
-async def backtest_ticker(ticker: str, period: str = "1y"):
+async def backtest_ticker(
+    ticker: str,
+    period: str = "1y",
+    slippage: float = 0.001,
+    commission: float = 1.0,
+):
     try:
-        result = run_backtest(ticker, period)
+        result = run_backtest(ticker, period, slippage=slippage, commission=commission)
         return BacktestResult(
             ticker=result["ticker"],
             period=result["period"],
@@ -19,6 +24,8 @@ async def backtest_ticker(ticker: str, period: str = "1y"):
             avg_trade_pct=result["avg_trade_pct"],
             trades=[BacktestTrade(**t) for t in result["trades"]],
             equity_curve=result["equity_curve"],
+            slippage_pct=result["slippage_pct"],
+            commission_per_trade=result["commission_per_trade"],
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Backtest failed for {ticker}: {str(e)}")

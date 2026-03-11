@@ -308,6 +308,8 @@ class BacktestResult(BaseModel):
     avg_trade_pct: float = 0.0
     trades: list[BacktestTrade] = []
     equity_curve: list[float] = []
+    slippage_pct: float = 0.1
+    commission_per_trade: float = 1.0
 
 
 # --- Market / Sector Models ---
