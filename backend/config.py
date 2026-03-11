@@ -9,10 +9,10 @@ _is_vercel = bool(os.environ.get("VERCEL", ""))
 DATA_DIR: Path = Path("/tmp/data") if _is_vercel else Path(__file__).parent.parent / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-PERPLEXITY_API_KEY: str = os.getenv("PERPLEXITY_API_KEY", "")
-ETORO_API_KEY: str = os.getenv("ETORO_API_KEY", "")
-ETORO_USER_KEY: str = os.getenv("ETORO_USER_KEY", "")
+OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "").strip()
+PERPLEXITY_API_KEY: str = os.getenv("PERPLEXITY_API_KEY", "").strip()
+ETORO_API_KEY: str = os.getenv("ETORO_API_KEY", "").strip()
+ETORO_USER_KEY: str = os.getenv("ETORO_USER_KEY", "").strip()
 
 # Cache TTLs in seconds
 QUOTE_CACHE_TTL: int = 60
