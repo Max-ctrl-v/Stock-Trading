@@ -35,27 +35,70 @@ def _get_usd_to_eur() -> float:
     return 0.92  # fallback
 
 
-def _get_fresh_etoro_positions() -> dict[int, dict] | None:
-    """Fetch fresh P&L from eToro API. Returns {position_id: pnl_data} or None on failure."""
+def _fetch_etoro_api_data() -> dict | None:
+    """Fetch raw eToro portfolio data. Returns API response or None on failure."""
     try:
         from backend.services.etoro import get_portfolio as etoro_get_portfolio
         data = etoro_get_portfolio()
         if "error" in data:
             logger.warning("eToro API error: %s", data["error"])
             return None
-        positions_raw = data.get("clientPortfolio", {}).get("positions", [])
-        result = {}
-        for pos in positions_raw:
-            pid = pos.get("positionID")
-            pnl_data = pos.get("unrealizedPnL", {})
-            result[pid] = {
-                "pnl": float(pnl_data.get("pnL", 0)) if pnl_data else 0,
-                "close_rate": float(pnl_data.get("closeRate", 0)) if pnl_data else 0,
-            }
-        return result
+        return data
     except Exception as e:
-        logger.warning("Failed to fetch fresh eToro data: %s", e)
+        logger.warning("Failed to fetch eToro data: %s", e)
         return None
+
+
+def _get_fresh_etoro_pnl(etoro_data: dict | None) -> dict[int, dict] | None:
+    """Extract {position_id: pnl_data} from eToro API response."""
+    if not etoro_data:
+        return None
+    positions_raw = etoro_data.get("clientPortfolio", {}).get("positions", [])
+    result = {}
+    for pos in positions_raw:
+        pid = pos.get("positionID")
+        pnl_data = pos.get("unrealizedPnL", {})
+        result[pid] = {
+            "pnl": float(pnl_data.get("pnL", 0)) if pnl_data else 0,
+            "close_rate": float(pnl_data.get("closeRate", 0)) if pnl_data else 0,
+        }
+    return result
+
+
+def _build_positions_from_etoro(etoro_data: dict) -> list[dict]:
+    """Build position list directly from eToro API (when portfolio.json is missing)."""
+    from backend.services.etoro import parse_positions, resolve_instruments_batch
+    positions_raw = etoro_data.get("clientPortfolio", {}).get("positions", [])
+    if not positions_raw:
+        return []
+
+    instrument_ids = [p["instrumentID"] for p in positions_raw]
+    instruments = resolve_instruments_batch(instrument_ids)
+
+    results = []
+    for pos in positions_raw:
+        iid = pos["instrumentID"]
+        inst_info = instruments.get(iid, {"ticker": f"ETORO_{iid}", "name": "Unknown"})
+        units = float(pos.get("units", 0))
+        open_rate = float(pos.get("openRate", 0))
+        amount = float(pos.get("amount", 0))
+        pnl_data = pos.get("unrealizedPnL", {})
+        pnl = float(pnl_data.get("pnL", 0)) if pnl_data else 0
+
+        if units > 0:
+            results.append({
+                "ticker": inst_info["ticker"],
+                "shares": round(units, 6),
+                "avg_cost": round(open_rate, 2),
+                "current_price": round(float(pnl_data.get("closeRate", 0)), 2) if pnl_data else None,
+                "invested": round(amount, 2),
+                "pnl": round(pnl, 2),
+                "source": "etoro",
+                "instrument_id": iid,
+                "position_id": pos.get("positionID"),
+                "added_at": "",
+            })
+    return results
 
 
 def _is_eur_ticker(ticker: str) -> bool:
@@ -73,8 +116,13 @@ async def get_portfolio():
     total_pnl_sum = 0
     usd_to_eur = _get_usd_to_eur()
 
-    # Fetch fresh P&L from eToro API (cached 2 min)
-    fresh_etoro = _get_fresh_etoro_positions()
+    # Fetch fresh data from eToro API (cached 2 min)
+    etoro_data = _fetch_etoro_api_data()
+    fresh_etoro = _get_fresh_etoro_pnl(etoro_data)
+
+    # If portfolio.json is empty (e.g. Vercel cold start), build from eToro API
+    if not positions and etoro_data:
+        positions = _build_positions_from_etoro(etoro_data)
 
     for p in positions:
         is_etoro = p.get("source") == "etoro"
