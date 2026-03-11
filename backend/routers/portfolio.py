@@ -44,38 +44,50 @@ async def get_portfolio():
     usd_to_eur = _get_usd_to_eur()
 
     for p in positions:
-        # Always fetch a live quote for accurate current prices
-        try:
-            quote = get_quote(p["ticker"])
-            current_price = quote["price"]
-        except Exception:
-            current_price = p.get("current_price") or p["avg_cost"]
-
         is_etoro = p.get("source") == "etoro"
 
         if is_etoro:
-            # eToro positions: use stored avg_cost & shares but live price
+            # eToro positions: use stored P&L from eToro API (already correct).
+            # Don't recalculate — eToro stores invested/avg_cost in USD but .DE
+            # stocks trade in EUR on yfinance, so recalculating mixes currencies.
+            stored_pnl = p.get("pnl", 0)
             invested = p.get("invested", p["shares"] * p["avg_cost"])
             cost_basis = round(invested, 2)
-            market_value = round(p["shares"] * current_price, 2)
-            pnl = round(market_value - cost_basis, 2)
+            market_value = round(cost_basis + stored_pnl, 2)
+            pnl = round(stored_pnl, 2)
             pnl_pct = round((pnl / cost_basis) * 100, 2) if cost_basis > 0 else 0
+
+            # eToro values are in USD — convert to EUR
+            mv_eur = round(market_value * usd_to_eur, 2)
+            cost_eur = round(cost_basis * usd_to_eur, 2)
+            pnl_eur = round(pnl * usd_to_eur, 2)
+            avg_cost_eur = round(p["avg_cost"] * usd_to_eur, 2)
+            cur_price_eur = round((market_value / p["shares"]) * usd_to_eur, 2) if p["shares"] > 0 else 0
         else:
+            # Manual positions: fetch live price and calculate
+            try:
+                quote = get_quote(p["ticker"])
+                current_price = quote["price"]
+            except Exception:
+                current_price = p.get("current_price") or p["avg_cost"]
+
             market_value = round(p["shares"] * current_price, 2)
             cost_basis = round(p["shares"] * p["avg_cost"], 2)
             pnl = round(market_value - cost_basis, 2)
             pnl_pct = round((pnl / cost_basis) * 100, 2) if cost_basis > 0 else 0
 
-        # Convert USD -> EUR
-        mv_eur = round(market_value * usd_to_eur, 2)
-        cost_eur = round(cost_basis * usd_to_eur, 2)
-        pnl_eur = round(pnl * usd_to_eur, 2)
+            # Manual positions assumed USD
+            mv_eur = round(market_value * usd_to_eur, 2)
+            cost_eur = round(cost_basis * usd_to_eur, 2)
+            pnl_eur = round(pnl * usd_to_eur, 2)
+            avg_cost_eur = round(p["avg_cost"] * usd_to_eur, 2)
+            cur_price_eur = round(current_price * usd_to_eur, 2)
 
         holdings.append(PortfolioHolding(
             ticker=p["ticker"],
             shares=p["shares"],
-            avg_cost=round(p["avg_cost"] * usd_to_eur, 2),
-            current_price=round(current_price * usd_to_eur, 2),
+            avg_cost=avg_cost_eur,
+            current_price=cur_price_eur,
             market_value=mv_eur,
             pnl=pnl_eur,
             pnl_pct=pnl_pct,
