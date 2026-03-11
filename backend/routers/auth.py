@@ -32,3 +32,5 @@ async def verify_token_endpoint():
     The auth middleware handles the actual verification — if we
     reach this handler the token is good."""
     return {"valid": True}
+
+

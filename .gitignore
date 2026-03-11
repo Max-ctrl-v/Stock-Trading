@@ -33,3 +33,5 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+.vercel
