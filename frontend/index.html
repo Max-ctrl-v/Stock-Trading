@@ -575,7 +575,12 @@
         <!-- AI Analysis -->
         <template x-if="data.ai_analysis">
           <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
-            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">AI Analysis</h3>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">AI Analysis</h3>
+              <span x-show="data.multi_timeframe && data.multi_timeframe.ai_provider"
+                    class="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-elevated text-brand-400"
+                    x-text="data.multi_timeframe && data.multi_timeframe.ai_provider"></span>
+            </div>
             <p class="text-sm text-gray-200 leading-relaxed mb-3" x-text="data.ai_analysis.narrative"></p>
             <div class="flex gap-2 items-center mb-3">
               <span class="text-xs text-gray-500">Conviction:</span>
@@ -2716,30 +2721,15 @@
         async startScan() {
           this.screenerScanning = true;
           this.screenerProgress = 0;
-          await fetch('/api/screener/scan', { method: 'POST' });
-          this.pollScreener();
-        },
-
-        async pollScreener() {
-          const poll = async () => {
-            try {
-              const res = await fetch('/api/screener/results');
+          try {
+            const res = await fetch('/api/screener/scan', { method: 'POST' });
+            if (res.ok) {
               const data = await res.json();
               this.screenerStatus = data.status;
-              this.screenerProgress = data.progress || 0;
-              if (data.status === 'ready') {
-                this.screenerPicks = data.picks || [];
-                this.screenerScanning = false;
-                return;
-              }
-              if (data.status === 'scanning') {
-                setTimeout(poll, 3000);
-              }
-            } catch(e) {
-              this.screenerScanning = false;
+              this.screenerPicks = data.picks || [];
             }
-          };
-          poll();
+          } catch(e) {}
+          this.screenerScanning = false;
         },
 
         async loadScreenerResults() {

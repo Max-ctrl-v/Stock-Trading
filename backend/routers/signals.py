@@ -1,9 +1,11 @@
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import APIRouter, HTTPException
 from backend.services.stock_data import get_quote, get_history, history_to_dict
 from backend.services.technical import compute_indicators
 from backend.services.signals import generate_signal, get_multi_timeframe_confirmation
 from backend.services.position_sizing import calculate_position
-from backend.services.chatgpt import analyze_stock
+from backend.services.chatgpt import analyze_stock as chatgpt_analyze
+from backend.services import claude_analysis as claude_svc
 from backend.services.perplexity import get_news_sentiment
 from backend.services.support_resistance import detect_support_resistance, calculate_fibonacci_levels
 from backend.services.signal_history import log_signal
@@ -53,7 +55,6 @@ async def get_signal(
         # Apply MTF alignment bonus OR conflict cap
         if signal["direction"] != "HOLD":
             if mtf_data.get("conflict"):
-                # 1D and 1W disagree — cap confidence at 50% (unreliable)
                 signal["confidence"] = min(signal["confidence"], 50)
                 mtf_data["warning"] = "Conflicting timeframes: confidence capped at 50%"
             elif mtf_data.get("aligned"):
@@ -74,13 +75,27 @@ async def get_signal(
         news_data = get_news_sentiment(ticker)
         news_summary = news_data.get("raw_analysis", "")
 
-        # Get AI analysis
-        ai_result = analyze_stock(
-            ticker=ticker,
-            price=quote_data["price"],
-            indicators=indicators,
-            news_summary=news_summary,
-        )
+        # Run ChatGPT and Claude analysis in parallel
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            gpt_future = pool.submit(
+                chatgpt_analyze,
+                ticker=ticker,
+                price=quote_data["price"],
+                indicators=indicators,
+                news_summary=news_summary,
+            )
+            claude_future = pool.submit(
+                claude_svc.analyze_stock,
+                ticker=ticker,
+                price=quote_data["price"],
+                indicators=indicators,
+                news_summary=news_summary,
+            )
+            gpt_result = gpt_future.result()
+            claude_result = claude_future.result()
+
+        # Use Claude result if available, otherwise fall back to GPT
+        ai_result = claude_result or gpt_result
 
         ai_analysis = None
         if ai_result:
@@ -109,11 +124,17 @@ async def get_signal(
                 },
             )
         except Exception:
-            pass  # Don't fail the signal if logging fails
+            pass
 
         # Attach earnings warning to mtf_data for frontend display
         if earnings_warning:
             mtf_data["earnings_warning"] = earnings_warning
+
+        # Attach which AI provider was used
+        if claude_result:
+            mtf_data["ai_provider"] = "Claude Opus (Extended Thinking)"
+        elif gpt_result:
+            mtf_data["ai_provider"] = "GPT-4o-mini"
 
         return SignalResponse(
             ticker=ticker.upper(),

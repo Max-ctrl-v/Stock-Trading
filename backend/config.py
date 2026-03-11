@@ -11,6 +11,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "").strip()
 PERPLEXITY_API_KEY: str = os.getenv("PERPLEXITY_API_KEY", "").strip()
+ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "").strip()
 ETORO_API_KEY: str = os.getenv("ETORO_API_KEY", "").strip()
 ETORO_USER_KEY: str = os.getenv("ETORO_USER_KEY", "").strip()
 

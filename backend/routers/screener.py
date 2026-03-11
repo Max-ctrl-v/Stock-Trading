@@ -23,17 +23,32 @@ async def get_preset(preset_key: str):
     return result
 
 
-@router.post("/scan")
+@router.post("/scan", response_model=ScreenerResponse)
 async def start_scan():
-    """Kick off a background screener scan."""
+    """Run screener scan synchronously and return results immediately."""
     status = get_scan_status()
     if status["status"] == "scanning":
-        return {"status": "already_scanning", "progress": status["progress"]}
+        picks = [ScreenerPick(**p) for p in status.get("picks", [])]
+        return ScreenerResponse(
+            status="scanning",
+            scanned_at="",
+            total_scanned=0,
+            progress=status.get("progress", 0),
+            picks=picks,
+        )
 
+    # Run synchronously — awaited so results are returned in this request
+    # Works on Vercel serverless where background threads are killed on return
     loop = asyncio.get_event_loop()
-    loop.run_in_executor(None, run_screener_scan)
-
-    return {"status": "scanning", "message": "Scan started"}
+    results = await loop.run_in_executor(None, run_screener_scan)
+    picks = [ScreenerPick(**p) for p in results]
+    return ScreenerResponse(
+        status="ready",
+        scanned_at="",
+        total_scanned=len(picks),
+        progress=0,
+        picks=picks,
+    )
 
 
 @router.post("/scan/watchlist")
