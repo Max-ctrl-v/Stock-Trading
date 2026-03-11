@@ -147,20 +147,13 @@ async def get_portfolio():
             cost_eur = round(cost_basis * usd_to_eur, 2)
             pnl_eur = round(pnl * usd_to_eur, 2)
 
-            is_eur = _is_eur_ticker(p["ticker"])
-            if is_eur:
-                # avg_cost from eToro is in instrument currency (EUR) for .DE stocks
-                avg_cost_eur = round(p["avg_cost"], 2)
-                if fresh_etoro and pid in fresh_etoro and fresh_etoro[pid]["close_rate"]:
-                    cur_price_eur = round(fresh_etoro[pid]["close_rate"], 2)
-                else:
-                    cur_price_eur = round(p.get("current_price", p["avg_cost"]), 2)
+            # avg_cost (openRate) and current_price (closeRate) are in instrument's native
+            # currency — USD for US stocks, EUR for .DE stocks. Keep as-is so they match eToro.
+            avg_cost_display = round(p["avg_cost"], 2)
+            if fresh_etoro and pid in fresh_etoro and fresh_etoro[pid]["close_rate"]:
+                cur_price_display = round(fresh_etoro[pid]["close_rate"], 2)
             else:
-                avg_cost_eur = round(p["avg_cost"] * usd_to_eur, 2)
-                if fresh_etoro and pid in fresh_etoro and fresh_etoro[pid]["close_rate"]:
-                    cur_price_eur = round(fresh_etoro[pid]["close_rate"] * usd_to_eur, 2)
-                else:
-                    cur_price_eur = round(p.get("current_price", p["avg_cost"]) * usd_to_eur, 2)
+                cur_price_display = round(p.get("current_price", p["avg_cost"]), 2)
         else:
             # Manual positions: fetch live price and calculate
             try:
@@ -177,14 +170,14 @@ async def get_portfolio():
             mv_eur = round(market_value * usd_to_eur, 2)
             cost_eur = round(cost_basis * usd_to_eur, 2)
             pnl_eur = round(pnl * usd_to_eur, 2)
-            avg_cost_eur = round(p["avg_cost"] * usd_to_eur, 2)
-            cur_price_eur = round(current_price * usd_to_eur, 2)
+            avg_cost_display = round(p["avg_cost"], 2)
+            cur_price_display = round(current_price, 2)
 
         holdings.append(PortfolioHolding(
             ticker=p["ticker"],
             shares=p["shares"],
-            avg_cost=avg_cost_eur,
-            current_price=cur_price_eur,
+            avg_cost=avg_cost_display,
+            current_price=cur_price_display,
             market_value=mv_eur,
             pnl=pnl_eur,
             pnl_pct=pnl_pct,
@@ -212,7 +205,8 @@ async def get_portfolio():
         g_pnl = round(sum(p.pnl for p in pos_list), 2)
         g_pnl_pct = round((g_pnl / g_cost) * 100, 2) if g_cost > 0 else 0
         g_price = pos_list[0].current_price
-        g_avg_cost = round(g_cost / g_shares, 2) if g_shares > 0 else 0
+        # Weighted avg entry price in native currency (USD for US, EUR for .DE)
+        g_avg_cost = round(sum(p.avg_cost * p.shares for p in pos_list) / g_shares, 2) if g_shares > 0 else 0
 
         groups.append(PortfolioGroup(
             ticker=ticker,

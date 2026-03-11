@@ -851,7 +851,7 @@
                               </div>
                               <div class="p-3 text-right font-mono text-xs text-gray-400 min-w-[80px]" x-text="pos.shares.toFixed(4)"></div>
                               <div class="p-3 text-right font-mono text-xs text-white min-w-[100px]" x-text="'€' + pos.market_value.toFixed(2)"></div>
-                              <div class="p-3 text-right font-mono text-xs text-gray-400 min-w-[100px]" x-text="'€' + pos.avg_cost.toFixed(2) + ' avg'"></div>
+                              <div class="p-3 text-right font-mono text-xs text-gray-400 min-w-[100px]" x-text="(g.ticker.match(/\.(DE|PA|AS|MI|BR)$/) ? '€' : '$') + pos.avg_cost.toFixed(2) + ' avg'"></div>
                               <div class="p-3 text-right font-mono text-xs font-semibold min-w-[100px]"
                                    :class="pos.pnl >= 0 ? 'text-success-400' : 'text-danger-400'"
                                    x-text="(pos.pnl >= 0 ? '+€' : '-€') + Math.abs(pos.pnl).toFixed(2)"></div>
