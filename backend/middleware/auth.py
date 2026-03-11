@@ -7,7 +7,7 @@ from starlette.responses import JSONResponse
 from backend.services.auth import decode_token
 
 # Routes that don't require auth
-PUBLIC_PATHS = {"/api/auth/login", "/", "/docs", "/openapi.json"}
+PUBLIC_PATHS = {"/api/auth/login", "/"}
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+import os
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -20,18 +22,42 @@ from backend.routers import (
 from backend.routers import auth as auth_router
 from backend.middleware.auth import AuthMiddleware
 
-app = FastAPI(title="Stock Analysis Tool", version="1.0.0")
+# Disable docs in production (Vercel)
+is_production = os.environ.get("VERCEL", "")
+app = FastAPI(
+    title="Stock Analysis Tool",
+    version="1.0.0",
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json",
+)
 
+# CORS — restrict to known origins
+ALLOWED_ORIGINS = [
+    "http://localhost:1001",
+    "http://127.0.0.1:1001",
+    "https://stock-trading-seven.vercel.app",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Auth middleware — checks JWT on all /api/ routes except /api/auth/login
 app.add_middleware(AuthMiddleware)
+
+
+# Security headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 # Auth router (public — no token needed for login)
 app.include_router(auth_router.router, prefix="/api/auth", tags=["auth"])
