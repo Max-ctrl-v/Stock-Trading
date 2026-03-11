@@ -35,7 +35,7 @@ if is_vercel:
     src_data = Path(__file__).parent.parent / "data"
     dst_data = Path("/tmp/data")
     dst_data.mkdir(parents=True, exist_ok=True)
-    for f in ["sp500_tickers.json"]:
+    for f in ["sp500_tickers.json", "portfolio.json"]:
         src = src_data / f
         dst = dst_data / f
         if src.exists() and not dst.exists():
