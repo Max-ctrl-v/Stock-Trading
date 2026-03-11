@@ -1,0 +1,8 @@
+# Only use Python provider — ignore package.json (puppeteer is for local screenshots only)
+providers = ["python"]
+
+[phases.setup]
+nixPkgs = ["python312"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
