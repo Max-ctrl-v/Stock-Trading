@@ -44,10 +44,13 @@ Local stock analysis web app for aggressive, high-frequency trading. Python Fast
 ## Project Structure
 - `backend/routers/` — FastAPI route handlers (one file per resource)
 - `backend/services/` — Business logic (one file per domain)
+- `backend/middleware/auth.py` — JWT auth middleware
 - `backend/models/schemas.py` — All Pydantic models
 - `frontend/index.html` — Entire frontend in one file
+- `api/index.py` — Vercel serverless entry point
+- `vercel.json` — Vercel deployment config
 - `data/` — Local JSON persistence (created at runtime)
-- `.env` — API keys (never commit)
+- `.env` — API keys + auth credentials (never commit)
 
 ## Code Conventions
 - Python: snake_case, type hints on all function signatures, async where possible
@@ -64,7 +67,36 @@ OPENAI_API_KEY=sk-...
 PERPLEXITY_API_KEY=pplx-...
 ETORO_API_KEY=eyJ...
 ETORO_USER_KEY=...
+AUTH_EMAIL=user@example.com
+AUTH_PASS_HASH=<sha256 hash>
+AUTH_PASS_SALT=<random hex salt>
+JWT_SECRET=<random 64-char hex>
 ```
+
+## Authentication
+- JWT-based login at `POST /api/auth/login`
+- Auth middleware protects all `/api/` routes except `/api/auth/login`
+- Password hashed with SHA-256 + per-user salt, compared via `hmac.compare_digest`
+- JWT tokens expire after 24 hours
+- Frontend stores token in `localStorage`, auto-attaches via fetch interceptor
+- On 401 response (expired/invalid token), frontend clears token and reloads → login screen
+- Router: `backend/routers/auth.py`, Service: `backend/services/auth.py`, Middleware: `backend/middleware/auth.py`
+
+## Deployment
+- **GitHub:** `Max-ctrl-v/Stock-Trading` (private)
+- **Vercel:** `stock-trading-seven.vercel.app` — combined frontend + backend
+- Vercel uses Python 3.12 serverless runtime (`api/index.py` entry point)
+- `vercel.json` routes `/api/*` to Python function, `/*` to static `frontend/`
+- All secrets stored as Vercel environment variables (production only)
+- `/docs` and `/openapi.json` disabled in production (VERCEL env var detected)
+
+## Security Rules
+- Never commit `.env` — gitignore blocks it
+- Always `.strip()` env vars read from `os.environ` (Vercel can add trailing whitespace)
+- CORS restricted to known origins (localhost:1001, Vercel domain)
+- Security headers: X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- JWT_SECRET must always be set — no fallback default (raises RuntimeError)
+- Use `hmac.compare_digest` for all credential comparisons (timing-safe)
 
 ## eToro Integration
 - Portfolio sync via eToro Public API (`https://public-api.etoro.com/api/v1/`)
@@ -82,6 +114,9 @@ ETORO_USER_KEY=...
 - Aggressive trading defaults: RSI thresholds 35/65, 2-3% risk per trade
 - Account size is user-configurable in the UI
 - All state is local (portfolio.json, watchlist.json) — single-user personal tool
+- Portfolio always fetches live yfinance prices (never use stale eToro sync prices for display)
+- Daily change computed from `previousClose` field for accuracy (not `regularMarketChange` which can be stale)
+- Stock detail modal: click any ticker in dashboard/portfolio to see live price, daily change, position daily P&L
 
 ## Charting
 - Multi-panel chart system: candlestick (price), volume bars, indicator panel (RSI/MACD toggle)
