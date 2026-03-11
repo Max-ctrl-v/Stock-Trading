@@ -358,7 +358,7 @@
           <div class="p-4 rounded-xl bg-surface-raised shadow-card group" style="transition: transform 0.15s cubic-bezier(0.16,1,0.3,1);" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
             <p class="text-xs text-gray-500 mb-1">Portfolio Value</p>
             <template x-if="portfolio">
-              <p class="text-xl font-bold font-mono text-white" x-text="'$' + portfolio.total_value.toLocaleString(undefined, {minimumFractionDigits:2})"></p>
+              <p class="text-xl font-bold font-mono text-white" x-text="'€' + portfolio.total_value.toLocaleString(undefined, {minimumFractionDigits:2})"></p>
             </template>
             <template x-if="!portfolio"><div class="skeleton h-7 w-24 mt-1"></div></template>
           </div>
@@ -366,7 +366,7 @@
             <p class="text-xs text-gray-500 mb-1">Total P&L</p>
             <template x-if="portfolio">
               <p class="text-xl font-bold font-mono" :class="portfolio.total_pnl >= 0 ? 'text-success-400' : 'text-danger-400'"
-                 x-text="(portfolio.total_pnl >= 0 ? '+$' : '-$') + Math.abs(portfolio.total_pnl).toFixed(2)"></p>
+                 x-text="(portfolio.total_pnl >= 0 ? '+€' : '-€') + Math.abs(portfolio.total_pnl).toFixed(2)"></p>
             </template>
             <template x-if="!portfolio"><div class="skeleton h-7 w-20 mt-1"></div></template>
           </div>
