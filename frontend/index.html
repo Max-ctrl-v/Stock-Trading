@@ -1841,7 +1841,8 @@
             }
             const d = await r.json();
             localStorage.setItem('auth_token', d.token);
-            this.authenticated = true;
+            // Reload so app() init() picks up the token and loads data
+            window.location.reload();
           } catch (e) {
             this.error = 'Cannot reach server. Check your connection.';
           } finally {
