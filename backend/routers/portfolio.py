@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from concurrent.futures import ThreadPoolExecutor
+import logging
 from backend.services.portfolio import (
     get_positions, add_position, remove_position,
     get_settings, update_settings, _load,
@@ -10,43 +10,57 @@ from backend.models.schemas import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
-_fx_cache: dict = {}
+_eur_rate_cache: dict = {}
 
 
-def _get_fx_rates() -> tuple[float, float]:
-    """Get USD↔EUR conversion rates, cached 10 min. Returns (usd_to_eur, eur_to_usd)."""
+def _get_usd_to_eur() -> float:
+    """Get USD to EUR conversion rate, cached 10 min."""
     import time
-    if _fx_cache.get("ts") and time.time() - _fx_cache["ts"] < 600:
-        return _fx_cache["usd_to_eur"], _fx_cache["eur_to_usd"]
+    if _eur_rate_cache.get("ts") and time.time() - _eur_rate_cache["ts"] < 600:
+        return _eur_rate_cache["rate"]
     try:
         import yfinance as yf
         t = yf.Ticker("EURUSD=X")
         h = t.history(period="1d")
         if len(h) > 0:
-            eur_to_usd = float(h["Close"].iloc[-1])  # e.g. 1.09
-            usd_to_eur = 1.0 / eur_to_usd              # e.g. 0.917
-            _fx_cache["usd_to_eur"] = usd_to_eur
-            _fx_cache["eur_to_usd"] = eur_to_usd
-            _fx_cache["ts"] = time.time()
-            return usd_to_eur, eur_to_usd
+            eur_usd = float(h["Close"].iloc[-1])
+            rate = 1.0 / eur_usd  # USD -> EUR
+            _eur_rate_cache["rate"] = rate
+            _eur_rate_cache["ts"] = time.time()
+            return rate
     except Exception:
         pass
-    return 0.92, 1.09  # fallback
+    return 0.92  # fallback
+
+
+def _get_fresh_etoro_positions() -> dict[int, dict] | None:
+    """Fetch fresh P&L from eToro API. Returns {position_id: pnl_data} or None on failure."""
+    try:
+        from backend.services.etoro import get_portfolio as etoro_get_portfolio
+        data = etoro_get_portfolio()
+        if "error" in data:
+            logger.warning("eToro API error: %s", data["error"])
+            return None
+        positions_raw = data.get("clientPortfolio", {}).get("positions", [])
+        result = {}
+        for pos in positions_raw:
+            pid = pos.get("positionID")
+            pnl_data = pos.get("unrealizedPnL", {})
+            result[pid] = {
+                "pnl": float(pnl_data.get("pnL", 0)) if pnl_data else 0,
+                "close_rate": float(pnl_data.get("closeRate", 0)) if pnl_data else 0,
+            }
+        return result
+    except Exception as e:
+        logger.warning("Failed to fetch fresh eToro data: %s", e)
+        return None
 
 
 def _is_eur_ticker(ticker: str) -> bool:
     """Check if ticker trades in EUR (e.g. .DE suffix)."""
     return ticker.upper().endswith((".DE", ".PA", ".AS", ".MI", ".BR"))
-
-
-def _fetch_live_price(ticker: str) -> float | None:
-    """Fetch live price from yfinance. Returns None on failure."""
-    try:
-        quote = get_quote(ticker)
-        return quote["price"] if quote["price"] else None
-    except Exception:
-        return None
 
 
 @router.get("", response_model=PortfolioSummary)
@@ -57,64 +71,61 @@ async def get_portfolio():
     total_value = 0
     total_cost = 0
     total_pnl_sum = 0
-    usd_to_eur, eur_to_usd = _get_fx_rates()
+    usd_to_eur = _get_usd_to_eur()
 
-    # Fetch live prices for all unique tickers in parallel
-    unique_tickers = list({p["ticker"] for p in positions})
-    live_prices: dict[str, float | None] = {}
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        results = list(executor.map(_fetch_live_price, unique_tickers))
-    for ticker, price in zip(unique_tickers, results):
-        live_prices[ticker] = price
+    # Fetch fresh P&L from eToro API (cached 2 min)
+    fresh_etoro = _get_fresh_etoro_positions()
 
     for p in positions:
         is_etoro = p.get("source") == "etoro"
-        ticker = p["ticker"]
-        is_eur = _is_eur_ticker(ticker)
-        live_price = live_prices.get(ticker)
 
         if is_etoro:
             invested = p.get("invested", p["shares"] * p["avg_cost"])
-            cost_basis_usd = round(invested, 2)
+            cost_basis = round(invested, 2)
 
-            if live_price is not None:
-                # Live price available — calculate real-time P&L
-                if is_eur:
-                    # .DE stocks: yfinance price is in EUR, convert to USD
-                    market_value_usd = round(p["shares"] * live_price * eur_to_usd, 2)
-                else:
-                    # US stocks: yfinance price is in USD
-                    market_value_usd = round(p["shares"] * live_price, 2)
-                pnl_usd = round(market_value_usd - cost_basis_usd, 2)
+            # Use fresh eToro P&L if available, otherwise stored
+            pid = p.get("position_id")
+            if fresh_etoro and pid in fresh_etoro:
+                stored_pnl = fresh_etoro[pid]["pnl"]
             else:
-                # Fallback to stored eToro P&L
-                pnl_usd = round(p.get("pnl", 0), 2)
-                market_value_usd = round(cost_basis_usd + pnl_usd, 2)
+                stored_pnl = p.get("pnl", 0)
 
-            pnl_pct = round((pnl_usd / cost_basis_usd) * 100, 2) if cost_basis_usd > 0 else 0
+            market_value = round(cost_basis + stored_pnl, 2)
+            pnl = round(stored_pnl, 2)
+            pnl_pct = round((pnl / cost_basis) * 100, 2) if cost_basis > 0 else 0
 
-            # Convert to EUR for display
-            mv_eur = round(market_value_usd * usd_to_eur, 2)
-            cost_eur = round(cost_basis_usd * usd_to_eur, 2)
-            pnl_eur = round(pnl_usd * usd_to_eur, 2)
+            # eToro values are in USD — convert to EUR
+            mv_eur = round(market_value * usd_to_eur, 2)
+            cost_eur = round(cost_basis * usd_to_eur, 2)
+            pnl_eur = round(pnl * usd_to_eur, 2)
 
+            is_eur = _is_eur_ticker(p["ticker"])
             if is_eur:
-                # avg_cost from eToro is already in EUR for .DE stocks
+                # avg_cost from eToro is in instrument currency (EUR) for .DE stocks
                 avg_cost_eur = round(p["avg_cost"], 2)
-                cur_price_eur = round(live_price, 2) if live_price else round(p.get("current_price", p["avg_cost"]), 2)
+                if fresh_etoro and pid in fresh_etoro and fresh_etoro[pid]["close_rate"]:
+                    cur_price_eur = round(fresh_etoro[pid]["close_rate"], 2)
+                else:
+                    cur_price_eur = round(p.get("current_price", p["avg_cost"]), 2)
             else:
                 avg_cost_eur = round(p["avg_cost"] * usd_to_eur, 2)
-                cur_price_eur = round(live_price * usd_to_eur, 2) if live_price else round(p.get("current_price", p["avg_cost"]) * usd_to_eur, 2)
+                if fresh_etoro and pid in fresh_etoro and fresh_etoro[pid]["close_rate"]:
+                    cur_price_eur = round(fresh_etoro[pid]["close_rate"] * usd_to_eur, 2)
+                else:
+                    cur_price_eur = round(p.get("current_price", p["avg_cost"]) * usd_to_eur, 2)
         else:
             # Manual positions: fetch live price and calculate
-            current_price = live_price if live_price else (p.get("current_price") or p["avg_cost"])
+            try:
+                quote = get_quote(p["ticker"])
+                current_price = quote["price"]
+            except Exception:
+                current_price = p.get("current_price") or p["avg_cost"]
 
             market_value = round(p["shares"] * current_price, 2)
             cost_basis = round(p["shares"] * p["avg_cost"], 2)
             pnl = round(market_value - cost_basis, 2)
             pnl_pct = round((pnl / cost_basis) * 100, 2) if cost_basis > 0 else 0
 
-            # Manual positions assumed USD
             mv_eur = round(market_value * usd_to_eur, 2)
             cost_eur = round(cost_basis * usd_to_eur, 2)
             pnl_eur = round(pnl * usd_to_eur, 2)
