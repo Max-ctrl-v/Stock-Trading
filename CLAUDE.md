@@ -84,11 +84,20 @@ JWT_SECRET=<random 64-char hex>
 
 ## Deployment
 - **GitHub:** `Max-ctrl-v/Stock-Trading` (private)
-- **Vercel:** `stock-trading-seven.vercel.app` — combined frontend + backend
+- **Vercel:** `stock-trading-seven.vercel.app` — frontend + serverless Python backend
 - Vercel uses Python 3.12 serverless runtime (`api/index.py` entry point)
 - `vercel.json` routes `/api/*` to Python function, `/*` to static `frontend/`
+- Vercel serverless has NO persistent file storage — data files go to `/tmp` (lost on cold start)
+- `backend/config.py` has centralized `DATA_DIR` that auto-detects Vercel and uses `/tmp/data`
+- `main.py` copies `data/sp500_tickers.json` to `/tmp/data/` on Vercel startup
 - All secrets stored as Vercel environment variables (production only)
 - `/docs` and `/openapi.json` disabled in production (VERCEL env var detected)
+- **Railway:** For persistent backend, deploy to Railway (has persistent filesystem)
+- Railway config: `railway.toml` + `Procfile` in project root
+- Railway start command: `uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}`
+- Railway health check: `/api/health`
+- When Railway is deployed, update `vercel.json` rewrites to proxy `/api/*` to Railway URL
+- Required Railway env vars: JWT_SECRET, AUTH_EMAIL, AUTH_PASS_HASH, AUTH_PASS_SALT, OPENAI_API_KEY, PERPLEXITY_API_KEY, ETORO_API_KEY, ETORO_USER_KEY
 
 ## Security Rules
 - Never commit `.env` — gitignore blocks it
