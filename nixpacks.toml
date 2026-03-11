@@ -2,10 +2,4 @@
 providers = ["python"]
 
 [phases.setup]
-nixPkgs = ["python312", "python312Packages.pip"]
-
-[phases.install]
-cmds = ["python3 -m ensurepip --upgrade", "python3 -m pip install -r requirements.txt"]
-
-[start]
-cmd = "python3 -m uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+nixPkgs = ["python312"]
