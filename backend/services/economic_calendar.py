@@ -1,10 +1,8 @@
 import json
-from pathlib import Path
 from datetime import date, datetime
 from uuid import uuid4
 from pydantic import BaseModel
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 CALENDAR_FILE = DATA_DIR / "economic_calendar.json"
 
 VALID_CATEGORIES = {"fed", "inflation", "employment", "gdp", "other"}

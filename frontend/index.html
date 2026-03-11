@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Stock analysis tool for active traders — signals, portfolio tracking, AI analysis">
   <title>Stock Analysis Tool</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230d9668'/><path d='M8 22l5-7 4 4 7-11' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -12,7 +14,7 @@
   <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -20,9 +22,9 @@
         extend: {
           colors: {
             brand: {
-              50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac',
-              400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d',
-              800: '#166534', 900: '#14532d',
+              50: '#ecfdf5', 100: '#d1fae5', 200: '#a7f3d0', 300: '#6ee7b7',
+              400: '#34d399', 500: '#0d9668', 600: '#0a7c56', 700: '#076644',
+              800: '#064e34', 900: '#043926',
             },
             surface: {
               base: 'var(--surface-base)',
@@ -31,10 +33,11 @@
               floating: 'var(--surface-floating)',
             },
             danger: { 400: '#f87171', 500: '#ef4444', 600: '#dc2626' },
-            success: { 400: '#4ade80', 500: '#22c55e', 600: '#16a34a' },
+            success: { 400: '#34d399', 500: '#0d9668', 600: '#076644' },
             warn: { 400: '#fbbf24', 500: '#f59e0b' },
           },
           fontFamily: {
+            display: ['DM Sans', 'system-ui', 'sans-serif'],
             sans: ['Inter', 'system-ui', 'sans-serif'],
             mono: ['JetBrains Mono', 'monospace'],
           },
@@ -55,33 +58,50 @@
       --border-color: #e2e8f0;
     }
     .dark {
-      --surface-base: #0a0f1a;
-      --surface-raised: #111827;
-      --surface-elevated: #1a2234;
-      --surface-floating: #243044;
+      --surface-base: #080c14;
+      --surface-raised: #0f1520;
+      --surface-elevated: #161d2c;
+      --surface-floating: #1e2a3c;
       --text-primary: #f1f5f9;
       --text-secondary: #cbd5e1;
       --text-muted: #64748b;
       --border-color: rgba(55,65,81,0.5);
     }
+    html { scroll-behavior: smooth; }
     body { background: var(--surface-base); color: var(--text-primary); }
+    /* Grain texture overlay */
+    .grain::before {
+      content: ''; position: fixed; inset: 0; z-index: 9999; pointer-events: none; opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
     .shadow-card {
-      box-shadow: 0 1px 1px rgba(0,0,0,0.4), 0 4px 8px rgba(0,0,0,0.3), 0 16px 32px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.04) inset;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.35), 0 4px 8px rgba(0,0,0,0.25), 0 12px 24px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.03) inset;
     }
     html:not(.dark) .shadow-card {
       box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
     }
-    .shadow-glow-green { box-shadow: 0 0 20px rgba(34,197,94,0.15), 0 0 60px rgba(34,197,94,0.05); }
-    .shadow-glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.15), 0 0 60px rgba(239,68,68,0.05); }
-    .signal-buy { background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.04)); border: 1px solid rgba(34,197,94,0.3); }
-    .signal-sell { background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(239,68,68,0.04)); border: 1px solid rgba(239,68,68,0.3); }
-    .signal-hold { background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.04)); border: 1px solid rgba(251,191,36,0.3); }
+    .shadow-glow-green { box-shadow: 0 0 20px rgba(13,150,104,0.2), 0 0 60px rgba(13,150,104,0.06); }
+    .shadow-glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.2), 0 0 60px rgba(239,68,68,0.06); }
+    .signal-buy { background: linear-gradient(135deg, rgba(13,150,104,0.12), rgba(13,150,104,0.03)); border: 1px solid rgba(13,150,104,0.3); }
+    .signal-sell { background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(239,68,68,0.03)); border: 1px solid rgba(239,68,68,0.3); }
+    .signal-hold { background: linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.03)); border: 1px solid rgba(251,191,36,0.3); }
     @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     .animate-pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fade-in 0.3s cubic-bezier(0.16,1,0.3,1); }
+    @keyframes slide-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-slide-up { animation: slide-up 0.35s cubic-bezier(0.16,1,0.3,1); }
+    @keyframes toast-in { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toast-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
+    .toast-enter { animation: toast-in 0.3s cubic-bezier(0.16,1,0.3,1); }
+    .toast-exit { animation: toast-out 0.25s cubic-bezier(0.16,1,0.3,1); }
     .scrollbar-thin::-webkit-scrollbar { width: 4px; }
     .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
     .scrollbar-thin::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
     [x-cloak] { display: none !important; }
+    /* Skeleton loader */
+    .skeleton { background: linear-gradient(90deg, var(--surface-elevated) 25%, var(--surface-floating) 50%, var(--surface-elevated) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.5s ease-in-out infinite; border-radius: 0.5rem; }
+    @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     /* Light mode text overrides */
     html:not(.dark) .text-white { color: var(--text-primary) !important; }
     html:not(.dark) .text-gray-200 { color: #334155 !important; }
@@ -97,7 +117,7 @@
     html:not(.dark) input, html:not(.dark) select { color: var(--text-primary); }
     /* Mobile nav */
     @media (max-width: 767px) {
-      .nav-mobile-menu { display: none; flex-direction: column; gap: 0.25rem; position: absolute; top: 100%; right: 0; background: var(--surface-raised); border-radius: 0.75rem; padding: 0.5rem; min-width: 160px; z-index: 50; }
+      .nav-mobile-menu { display: none; flex-direction: column; gap: 0.25rem; position: absolute; top: 100%; right: 0; background: var(--surface-raised); border-radius: 0.75rem; padding: 0.5rem; min-width: 160px; z-index: 50; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
       .nav-mobile-menu.open { display: flex; }
       .nav-mobile-menu button { width: 100%; text-align: left; }
     }
@@ -107,11 +127,25 @@
     }
   </style>
   <script>
-    // Auth: override fetch to auto-attach JWT token
+    // API base URL — auto-detect Railway backend when on Vercel
+    const API_BASE = (() => {
+      const h = window.location.hostname;
+      if (h.includes('vercel.app') || h.includes('vercel.sh')) {
+        // When deployed: Vercel rewrites proxy /api/* to Railway backend
+        return '';
+      }
+      return ''; // local dev: same origin
+    })();
+
+    // Auth: override fetch to auto-attach JWT token + prepend API_BASE
     const _origFetch = window.fetch;
     window.fetch = function(url, opts = {}) {
       const token = localStorage.getItem('auth_token');
-      if (token && typeof url === 'string' && url.startsWith('/api/') && !url.includes('/api/auth/login')) {
+      // Prepend API_BASE for /api/ calls
+      if (typeof url === 'string' && url.startsWith('/api/') && API_BASE) {
+        url = API_BASE + url;
+      }
+      if (token && typeof url === 'string' && (url.startsWith('/api/') || url.includes('/api/')) && !url.includes('/api/auth/login')) {
         opts.headers = opts.headers || {};
         if (opts.headers instanceof Headers) {
           opts.headers.set('Authorization', 'Bearer ' + token);
@@ -120,7 +154,6 @@
         }
       }
       return _origFetch.call(this, url, opts).then(resp => {
-        // If 401 and we had a token, it expired — force logout (but don't loop if no token)
         if (resp.status === 401 && token && typeof url === 'string' && !url.includes('/api/auth/login')) {
           localStorage.removeItem('auth_token');
           window.location.reload();
@@ -130,37 +163,48 @@
     };
   </script>
 </head>
-<body class="font-sans text-gray-200 min-h-screen">
+<body class="font-sans text-gray-200 min-h-screen grain">
+
+  <!-- ===== TOAST CONTAINER ===== -->
+  <div id="toast-container" class="fixed top-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none" style="max-width:360px"></div>
 
   <!-- ===== LOGIN SCREEN ===== -->
   <div x-data="loginGate()" x-show="!authenticated" x-cloak
        class="fixed inset-0 z-[100] flex items-center justify-center"
-       style="background: linear-gradient(135deg, #0a0f1a 0%, #111827 50%, #0d1520 100%);">
-    <div class="w-full max-w-sm px-6">
+       style="background: radial-gradient(ellipse at 20% 50%, rgba(13,150,104,0.12) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(52,211,153,0.08) 0%, transparent 50%), linear-gradient(160deg, #060a12 0%, #0f1520 40%, #0a1018 100%);">
+    <div class="w-full max-w-sm px-6 animate-slide-up">
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-white tracking-tight" style="letter-spacing:-0.03em">Stock Analysis</h1>
-        <p class="text-sm text-gray-500 mt-2">Sign in to continue</p>
+        <div class="mx-auto w-14 h-14 rounded-2xl bg-brand-500/15 flex items-center justify-center mb-5" style="box-shadow: 0 0 40px rgba(13,150,104,0.15);">
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none"><path d="M8 22l5-7 4 4 7-11" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h1 class="text-3xl font-display font-bold text-white tracking-tight" style="letter-spacing:-0.03em">Stock Analysis</h1>
+        <p class="text-sm text-gray-500 mt-2">Sign in to your trading dashboard</p>
       </div>
       <form @submit.prevent="login()" class="space-y-4">
         <div>
           <label class="block text-xs font-medium text-gray-400 mb-1.5">Email</label>
           <input type="email" x-model="email" required autocomplete="email"
-                 class="w-full px-4 py-3 rounded-xl bg-surface-raised border border-gray-700/50 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50"
+                 class="w-full px-4 py-3 rounded-xl bg-surface-raised border border-gray-700/50 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/40"
                  placeholder="you@example.com">
         </div>
         <div>
           <label class="block text-xs font-medium text-gray-400 mb-1.5">Password</label>
           <input type="password" x-model="password" required autocomplete="current-password"
-                 class="w-full px-4 py-3 rounded-xl bg-surface-raised border border-gray-700/50 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50"
+                 class="w-full px-4 py-3 rounded-xl bg-surface-raised border border-gray-700/50 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500/40"
                  placeholder="Enter password">
         </div>
-        <p x-show="error" x-text="error" class="text-danger-400 text-xs"></p>
+        <p x-show="error" x-text="error" class="text-danger-400 text-xs animate-fade-in"></p>
         <button type="submit" :disabled="loggingIn"
-                class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-[0.98] text-white font-semibold text-sm transition-transform duration-150 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-brand-400/50">
+                class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-[0.98] text-white font-semibold text-sm disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-brand-400/40"
+                style="transition: background-color 0.15s, transform 0.1s;">
           <span x-show="!loggingIn">Sign In</span>
-          <span x-show="loggingIn">Signing in...</span>
+          <span x-show="loggingIn" class="flex items-center justify-center gap-2">
+            <span class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+            Signing in...
+          </span>
         </button>
       </form>
+      <p class="text-center text-[11px] text-gray-600 mt-8">Signals + AI analysis for active traders</p>
     </div>
   </div>
 
@@ -169,13 +213,22 @@
 
     <!-- ===== HEADER ===== -->
     <header class="flex items-center justify-between mb-8 relative">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight text-white" style="letter-spacing:-0.03em">
-          Stock Analysis
-        </h1>
-        <p class="text-sm text-gray-500 mt-1">Short-term signals + AI analysis for active traders</p>
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-brand-500/15 flex items-center justify-center flex-shrink-0">
+          <svg width="18" height="18" viewBox="0 0 32 32" fill="none"><path d="M8 22l5-7 4 4 7-11" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-display font-bold tracking-tight text-white" style="letter-spacing:-0.03em">
+            Stock Analysis
+          </h1>
+          <p class="text-xs text-gray-500 mt-0.5" x-text="lastRefresh ? 'Updated ' + lastRefresh : 'Short-term signals + AI analysis'"></p>
+        </div>
       </div>
       <div class="flex items-center gap-2">
+        <!-- Connection status -->
+        <span x-show="!connectionOk" class="flex items-center gap-1.5 text-xs text-danger-400 bg-danger-500/10 px-2.5 py-1.5 rounded-lg">
+          <span class="w-1.5 h-1.5 rounded-full bg-danger-400 animate-pulse-dot"></span> Offline
+        </span>
         <!-- Theme toggle -->
         <button @click="toggleTheme()"
                 class="px-2.5 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-sm focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95"
@@ -240,8 +293,8 @@
     </header>
 
     <!-- ===== SETTINGS PANEL ===== -->
-    <div x-show="showSettings" x-transition class="mb-6 p-4 rounded-xl bg-surface-raised shadow-card">
-      <h3 class="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">Settings</h3>
+    <div x-show="showSettings" x-transition class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card animate-fade-in">
+      <h3 class="text-sm font-display font-semibold text-gray-400 mb-4 uppercase tracking-wide">Settings</h3>
       <div class="flex gap-4 flex-wrap">
         <div>
           <label class="block text-xs text-gray-500 mb-1">Account Size ($)</label>
@@ -261,9 +314,12 @@
     <!-- ===== SEARCH BAR (analysis/watchlist only) ===== -->
     <div x-show="activeTab === 'analysis' || activeTab === 'watchlist'" class="mb-6">
       <div class="flex gap-2">
-        <input type="text" x-model="searchTicker" placeholder="Enter ticker (e.g. AAPL, MSFT, SPY)"
-               @keydown.enter="analyzeStock()"
-               class="flex-1 px-4 py-3 rounded-xl bg-surface-raised border border-gray-700 text-white placeholder-gray-500 text-sm font-medium focus:border-brand-500 focus:outline-none shadow-card">
+        <div class="relative flex-1">
+          <input type="text" x-model="searchTicker" placeholder="Enter ticker (e.g. AAPL, MSFT, SPY)"
+                 @keydown.enter="analyzeStock()"
+                 class="w-full px-4 py-3 rounded-xl bg-surface-raised border border-gray-700 text-white placeholder-gray-500 text-sm font-medium focus:border-brand-500 focus:outline-none shadow-card pr-16">
+          <kbd class="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline text-[10px] text-gray-600 bg-surface-elevated px-1.5 py-0.5 rounded border border-gray-700/50 font-mono">/</kbd>
+        </div>
         <button @click="analyzeStock()"
                 :disabled="loading"
                 class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-semibold text-sm transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:outline-none active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -274,7 +330,10 @@
           </span>
         </button>
       </div>
-      <p x-show="error" x-text="error" class="mt-2 text-sm text-danger-400"></p>
+      <div x-show="error" class="mt-2 flex items-center gap-2 animate-fade-in">
+        <p x-text="error" class="text-sm text-danger-400 flex-1"></p>
+        <button @click="analyzeStock()" class="text-xs text-brand-400 hover:text-brand-300 font-medium flex-shrink-0">Retry</button>
+      </div>
     </div>
 
     <!-- ===== ALERTS BAR ===== -->
@@ -293,23 +352,29 @@
 
     <!-- ===== DASHBOARD TAB ===== -->
     <template x-if="activeTab === 'dashboard'">
-      <div>
+      <div class="animate-fade-in">
         <!-- Portfolio Summary Row -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card group" style="transition: transform 0.15s cubic-bezier(0.16,1,0.3,1);" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
             <p class="text-xs text-gray-500 mb-1">Portfolio Value</p>
-            <p class="text-xl font-bold font-mono text-white" x-text="portfolio ? '€' + portfolio.total_value.toLocaleString(undefined, {minimumFractionDigits:2}) : '€0.00'"></p>
+            <template x-if="portfolio">
+              <p class="text-xl font-bold font-mono text-white" x-text="'$' + portfolio.total_value.toLocaleString(undefined, {minimumFractionDigits:2})"></p>
+            </template>
+            <template x-if="!portfolio"><div class="skeleton h-7 w-24 mt-1"></div></template>
           </div>
-          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card" style="transition: transform 0.15s cubic-bezier(0.16,1,0.3,1);" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
             <p class="text-xs text-gray-500 mb-1">Total P&L</p>
-            <p class="text-xl font-bold font-mono" :class="portfolio && portfolio.total_pnl >= 0 ? 'text-success-400' : 'text-danger-400'"
-               x-text="portfolio ? (portfolio.total_pnl >= 0 ? '+€' : '-€') + Math.abs(portfolio.total_pnl).toFixed(2) : '€0.00'"></p>
+            <template x-if="portfolio">
+              <p class="text-xl font-bold font-mono" :class="portfolio.total_pnl >= 0 ? 'text-success-400' : 'text-danger-400'"
+                 x-text="(portfolio.total_pnl >= 0 ? '+$' : '-$') + Math.abs(portfolio.total_pnl).toFixed(2)"></p>
+            </template>
+            <template x-if="!portfolio"><div class="skeleton h-7 w-20 mt-1"></div></template>
           </div>
-          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card" style="transition: transform 0.15s cubic-bezier(0.16,1,0.3,1);" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
             <p class="text-xs text-gray-500 mb-1">Active Alerts</p>
             <p class="text-xl font-bold font-mono text-warn-400" x-text="alerts.length"></p>
           </div>
-          <div class="p-4 rounded-xl bg-surface-raised shadow-card">
+          <div class="p-4 rounded-xl bg-surface-raised shadow-card" style="transition: transform 0.15s cubic-bezier(0.16,1,0.3,1);" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
             <p class="text-xs text-gray-500 mb-1">Watchlist</p>
             <p class="text-xl font-bold font-mono text-white" x-text="watchlist.length + ' tickers'"></p>
           </div>
@@ -334,7 +399,11 @@
               </div>
             </template>
           </div>
-          <p x-show="watchlist.length === 0" class="text-sm text-gray-500">Watchlist is empty. Add tickers to see movers.</p>
+          <div x-show="watchlist.length === 0" class="text-center py-6">
+            <svg class="mx-auto w-10 h-10 text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            <p class="text-sm text-gray-500">No watchlist tickers yet</p>
+            <button @click="activeTab = 'watchlist'" class="mt-2 text-xs text-brand-400 hover:text-brand-300">Add tickers &rarr;</button>
+          </div>
         </div>
 
         <!-- Holdings Quick View -->
@@ -365,7 +434,11 @@
               </tbody>
             </table>
           </div>
-          <p x-show="!portfolio || !portfolio.groups || portfolio.groups.length === 0" class="text-sm text-gray-500">No holdings yet. Add some in the Portfolio tab.</p>
+          <div x-show="!portfolio || !portfolio.groups || portfolio.groups.length === 0" class="text-center py-6">
+            <svg class="mx-auto w-10 h-10 text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            <p class="text-sm text-gray-500">No holdings yet</p>
+            <button @click="activeTab = 'portfolio'" class="mt-2 text-xs text-brand-400 hover:text-brand-300">Sync from eToro or add manually &rarr;</button>
+          </div>
         </div>
 
         <!-- Triggered Alerts on Dashboard -->
@@ -388,11 +461,11 @@
 
     <!-- ===== ANALYSIS TAB ===== -->
     <template x-if="activeTab === 'analysis' && data">
-      <div>
+      <div class="animate-fade-in">
         <!-- Quote Header -->
         <div class="flex items-center gap-4 mb-6 p-4 rounded-xl bg-surface-raised shadow-card">
           <div>
-            <h2 class="text-xl font-bold text-white" x-text="data.quote.ticker"></h2>
+            <h2 class="text-xl font-display font-bold text-white" style="letter-spacing:-0.03em" x-text="data.quote.ticker"></h2>
             <p class="text-sm text-gray-400" x-text="data.quote.name"></p>
           </div>
           <div class="ml-auto text-right">
@@ -410,7 +483,7 @@
             <div class="flex items-center gap-3">
               <span class="w-3 h-3 rounded-full animate-pulse-dot"
                     :class="data.signal.direction === 'BUY' ? 'bg-success-400' : data.signal.direction === 'SELL' ? 'bg-danger-400' : 'bg-warn-400'"></span>
-              <span class="text-2xl font-bold tracking-tight"
+              <span class="text-2xl font-display font-bold tracking-tight"
                     :class="data.signal.direction === 'BUY' ? 'text-success-400' : data.signal.direction === 'SELL' ? 'text-danger-400' : 'text-warn-400'"
                     x-text="data.signal.direction" style="letter-spacing:-0.03em"></span>
               <span class="text-sm text-gray-400">Signal</span>
@@ -671,7 +744,7 @@
 
     <!-- ===== PORTFOLIO TAB ===== -->
     <template x-if="activeTab === 'portfolio'">
-      <div>
+      <div class="animate-fade-in">
         <!-- eToro Sync Bar -->
         <div class="mb-6 p-4 rounded-xl bg-surface-raised shadow-card flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -795,15 +868,17 @@
                 </template>
               </tbody>
             </table>
-            <div x-show="portfolio && (!portfolio.groups || portfolio.groups.length === 0)" class="p-8 text-center text-gray-500 text-sm">
-              Nothing here yet. Analyze a stock and add it.
+            <div x-show="portfolio && (!portfolio.groups || portfolio.groups.length === 0)" class="p-10 text-center">
+              <svg class="mx-auto w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+              <p class="text-sm text-gray-500 mb-2">No positions yet</p>
+              <p class="text-xs text-gray-600">Sync from eToro above, or analyze a stock and add it</p>
             </div>
           </div>
         </div>
 
         <!-- ===== PORTFOLIO ANALYTICS ===== -->
         <div class="mt-6" x-show="portfolio && portfolio.holdings.length > 0">
-          <h3 class="text-lg font-semibold text-white mb-4">Portfolio Analytics</h3>
+          <h3 class="text-lg font-display font-semibold text-white mb-4" style="letter-spacing:-0.03em">Portfolio Analytics</h3>
           <div class="flex flex-wrap gap-2 mb-5">
             <template x-for="tab in [
               {id:'allocation',label:'Allocation'},{id:'correlation',label:'Correlation'},
@@ -1091,7 +1166,7 @@
 
     <!-- ===== WATCHLIST TAB ===== -->
     <template x-if="activeTab === 'watchlist'">
-      <div>
+      <div class="animate-fade-in">
         <div class="mb-6 flex gap-2">
           <input type="text" x-model="watchlistTicker" placeholder="Add ticker (e.g. AAPL)"
                  @keydown.enter="addToWatchlist()"
@@ -1145,8 +1220,10 @@
             <span class="w-4 h-4 border-2 border-gray-500/30 border-t-gray-400 rounded-full animate-spin inline-block mr-2"></span>
             Loading watchlist...
           </div>
-          <div x-show="!watchlistLoading && watchlist.length === 0" class="p-8 text-center text-gray-500 text-sm">
-            Watchlist is empty. Add a ticker above.
+          <div x-show="!watchlistLoading && watchlist.length === 0" class="p-10 text-center">
+            <svg class="mx-auto w-12 h-12 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+            <p class="text-sm text-gray-500">Watchlist is empty</p>
+            <p class="text-xs text-gray-600 mt-1">Add a ticker above to start tracking</p>
           </div>
         </div>
       </div>
@@ -1154,9 +1231,9 @@
 
     <!-- ===== SCREENER TAB ===== -->
     <template x-if="activeTab === 'screener'">
-      <div>
+      <div class="animate-fade-in">
         <div class="mb-6 flex items-center justify-between">
-          <h2 class="text-lg font-bold text-white">Stock Screener</h2>
+          <h2 class="text-lg font-display font-bold text-white" style="letter-spacing:-0.03em">Stock Screener</h2>
           <div class="flex items-center gap-2">
             <button @click="exportCSV('screener')" x-show="screenerPicks.length > 0" class="px-3 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-xs font-medium focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95">
               Export CSV
@@ -1243,9 +1320,9 @@
 
     <!-- ===== JOURNAL TAB ===== -->
     <template x-if="activeTab === 'journal'">
-      <div>
+      <div class="animate-fade-in">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-lg font-bold text-white">Trade Journal</h2>
+          <h2 class="text-lg font-display font-bold text-white">Trade Journal</h2>
           <button @click="exportCSV('journal')" class="px-3 py-1.5 rounded-lg bg-surface-elevated text-gray-400 hover:text-white hover:bg-surface-floating transition-colors text-xs font-medium focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-95">
             Export CSV
           </button>
@@ -1328,9 +1405,9 @@
 
     <!-- ===== MARKET TAB ===== -->
     <template x-if="activeTab === 'market'">
-      <div>
+      <div class="animate-fade-in">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-lg font-bold text-white">Market Overview</h2>
+          <h2 class="text-lg font-display font-bold text-white">Market Overview</h2>
           <button @click="loadMarketData()" :disabled="marketLoading"
                   class="px-4 py-2 rounded-lg bg-surface-elevated text-gray-400 hover:text-white text-sm font-medium">
             Refresh
@@ -1390,8 +1467,8 @@
 
     <!-- ===== TRADING TAB ===== -->
     <template x-if="activeTab === 'trading'">
-      <div>
-        <h2 class="text-lg font-bold text-white mb-6">Trading Tools</h2>
+      <div class="animate-fade-in">
+        <h2 class="text-lg font-display font-bold text-white mb-6">Trading Tools</h2>
         <!-- Paper Trading -->
         <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
           <div class="flex items-center justify-between mb-4">
@@ -1465,8 +1542,8 @@
 
     <!-- ===== RESEARCH TAB ===== -->
     <template x-if="activeTab === 'research'">
-      <div>
-        <h2 class="text-lg font-bold text-white mb-6">Research & Sentiment</h2>
+      <div class="animate-fade-in">
+        <h2 class="text-lg font-display font-bold text-white mb-6">Research & Sentiment</h2>
         <!-- Earnings -->
         <div class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card">
           <div class="flex items-center justify-between mb-3"><h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide">Earnings Calendar</h3><button @click="loadEarnings()" class="px-3 py-1.5 rounded-lg bg-surface-elevated text-gray-400 hover:text-white text-xs font-medium transition-colors">Load Portfolio Earnings</button></div>
@@ -1515,11 +1592,11 @@
 
     <!-- ===== PICKS TAB ===== -->
     <template x-if="activeTab === 'picks'">
-      <div>
+      <div class="animate-fade-in">
         <!-- Sell Signals for Current Positions -->
         <div class="mb-8">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-bold text-white">Your Positions — Hold or Sell?</h2>
+            <h2 class="text-lg font-display font-bold text-white">Your Positions — Hold or Sell?</h2>
             <button @click="loadSellSignals()" :disabled="sellSignalsLoading"
                     class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm rounded-lg disabled:opacity-50">
               <span x-show="!sellSignalsLoading">Refresh</span>
@@ -1567,7 +1644,7 @@
         <div>
           <div class="flex items-center justify-between mb-4">
             <div>
-              <h2 class="text-lg font-bold text-white">Stock Picks</h2>
+              <h2 class="text-lg font-display font-bold text-white">Stock Picks</h2>
               <p class="text-xs text-gray-500 mt-0.5">Stocks with highest upside potential from ~100 eToro-tradable tickers</p>
             </div>
             <button @click="scanRecommendations()" :disabled="recsScanning"
@@ -1641,12 +1718,12 @@
 
     <!-- ===== STOCK DETAIL MODAL ===== -->
     <div x-show="stockModal" x-transition.opacity class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="closeStockModal()" style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px)">
-      <div x-show="stockModal" x-transition class="w-full max-w-lg rounded-2xl bg-surface-raised shadow-card p-6 relative">
-        <button @click="closeStockModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg">&times;</button>
+      <div x-show="stockModal" x-transition class="w-full max-w-lg rounded-2xl bg-surface-raised shadow-card p-6 relative animate-slide-up">
+        <button @click="closeStockModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white text-lg focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none active:scale-90">&times;</button>
         <template x-if="stockModal">
           <div>
             <div class="flex items-center gap-3 mb-4">
-              <h3 class="text-xl font-bold text-white" x-text="stockModal.ticker"></h3>
+              <h3 class="text-xl font-display font-bold text-white" style="letter-spacing:-0.03em" x-text="stockModal.ticker"></h3>
               <span x-show="stockModal.quote" class="text-sm text-gray-400" x-text="stockModal.quote?.name || ''"></span>
             </div>
 
@@ -1728,6 +1805,18 @@
 
   <!-- ===== APP LOGIC ===== -->
   <script>
+    // Global toast function
+    function showToast(msg, type = 'info', duration = 4000) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const colors = { success: 'bg-brand-600 text-white', error: 'bg-danger-600 text-white', info: 'bg-surface-floating text-white', warn: 'bg-warn-500 text-gray-900' };
+      const el = document.createElement('div');
+      el.className = `px-4 py-3 rounded-xl text-sm font-medium pointer-events-auto shadow-card toast-enter ${colors[type] || colors.info}`;
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => { el.classList.remove('toast-enter'); el.classList.add('toast-exit'); setTimeout(() => el.remove(), 250); }, duration);
+    }
+
     function loginGate() {
       return {
         authenticated: !!localStorage.getItem('auth_token'),
@@ -1739,21 +1828,22 @@
           this.error = '';
           this.loggingIn = true;
           try {
-            const r = await _origFetch('/api/auth/login', {
+            const loginUrl = (API_BASE || '') + '/api/auth/login';
+            const r = await _origFetch(loginUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email: this.email, password: this.password }),
             });
             if (!r.ok) {
-              const d = await r.json();
-              this.error = d.detail || 'Login failed';
+              const d = await r.json().catch(() => ({}));
+              this.error = d.detail || 'Invalid email or password';
               return;
             }
             const d = await r.json();
             localStorage.setItem('auth_token', d.token);
             this.authenticated = true;
           } catch (e) {
-            this.error = 'Connection error';
+            this.error = 'Cannot reach server. Check your connection.';
           } finally {
             this.loggingIn = false;
           }
@@ -1862,6 +1952,9 @@
         recsScanning: false,
         sellSignals: null,
         sellSignalsLoading: false,
+        // UI state
+        lastRefresh: '',
+        connectionOk: true,
 
         async init() {
           // Restore theme from localStorage
@@ -1872,18 +1965,32 @@
           }
           // Skip API calls if not logged in
           if (!localStorage.getItem('auth_token')) return;
+          // Check connectivity
+          try {
+            const h = await fetch('/api/health');
+            this.connectionOk = h.ok;
+          } catch(e) { this.connectionOk = false; }
+
           await this.loadSettings();
           await this.loadPortfolio();
+          this.updateRefreshTime();
           await this.checkEtoroStatus();
           this.loadWatchlist();
           this.loadScreenerResults();
           this.loadJournal();
+          // Auto-refresh intervals
           setInterval(() => this.loadWatchlist(), 60000);
           setInterval(() => this.checkAlerts(), 60000);
+          setInterval(() => { this.loadPortfolio(); this.updateRefreshTime(); }, 120000);
           // Request notification permission
           if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
           }
+        },
+
+        updateRefreshTime() {
+          const now = new Date();
+          this.lastRefresh = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         },
 
         // Theme toggle
@@ -2095,8 +2202,13 @@
         async loadPortfolio() {
           try {
             const res = await fetch('/api/portfolio');
-            if (res.ok) this.portfolio = await res.json();
-          } catch(e) {}
+            if (res.ok) {
+              this.portfolio = await res.json();
+              this.connectionOk = true;
+            }
+          } catch(e) {
+            this.connectionOk = false;
+          }
         },
 
         async analyzeStock() {
@@ -2123,8 +2235,10 @@
             if (newsRes.ok) this.newsData = await newsRes.json();
 
             this.$nextTick(() => this.fetchChartData(this.chartTimeframe));
+            document.title = `${ticker} - Stock Analysis`;
           } catch(e) {
             this.error = e.message;
+            showToast('Analysis failed: ' + e.message, 'error');
           } finally {
             this.loading = false;
           }
@@ -2401,7 +2515,7 @@
         async addToPortfolio() {
           if (!this.data) return;
           try {
-            await fetch('/api/portfolio/add', {
+            const res = await fetch('/api/portfolio/add', {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({
@@ -2410,15 +2524,21 @@
                 avg_cost: this.data.quote.price,
               }),
             });
-            await this.loadPortfolio();
-          } catch(e) {}
+            if (res.ok) {
+              showToast(`Added ${this.data.quote.ticker} to portfolio`, 'success');
+              await this.loadPortfolio();
+            } else {
+              showToast('Failed to add to portfolio', 'error');
+            }
+          } catch(e) { showToast('Failed to add to portfolio', 'error'); }
         },
 
         async removeFromPortfolio(ticker) {
           try {
             await fetch(`/api/portfolio/${ticker}`, { method: 'DELETE' });
+            showToast(`Removed ${ticker} from portfolio`, 'info');
             await this.loadPortfolio();
-          } catch(e) {}
+          } catch(e) { showToast('Failed to remove', 'error'); }
         },
 
         async checkEtoroStatus() {
@@ -2443,13 +2563,16 @@
 
         async addToWatchlist() {
           if (!this.watchlistTicker.trim()) return;
-          await fetch(`/api/watchlist/${this.watchlistTicker.trim()}`, { method: 'POST' });
+          const t = this.watchlistTicker.trim().toUpperCase();
+          const res = await fetch(`/api/watchlist/${t}`, { method: 'POST' });
+          if (res.ok) showToast(`Added ${t} to watchlist`, 'success');
           this.watchlistTicker = '';
           await this.loadWatchlist();
         },
 
         async removeFromWatchlist(ticker) {
           await fetch(`/api/watchlist/${ticker}`, { method: 'DELETE' });
+          showToast(`Removed ${ticker}`, 'info');
           await this.loadWatchlist();
         },
 
@@ -2462,14 +2585,18 @@
             const data = await res.json();
             if (!res.ok) {
               this.syncError = data.detail || 'Sync failed';
+              showToast(this.syncError, 'error');
               return;
             }
             this.syncSuccess = `Synced ${data.imported} positions from eToro`;
             this.lastSyncTime = new Date().toLocaleTimeString();
+            showToast(this.syncSuccess, 'success');
             await this.loadPortfolio();
+            this.updateRefreshTime();
             setTimeout(() => this.syncSuccess = '', 5000);
           } catch(e) {
             this.syncError = e.message || 'Sync failed';
+            showToast('eToro sync failed: ' + this.syncError, 'error');
           } finally {
             this.syncing = false;
           }

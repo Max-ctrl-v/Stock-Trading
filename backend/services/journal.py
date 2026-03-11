@@ -1,9 +1,7 @@
 import json
 import uuid
 import time
-from pathlib import Path
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 JOURNAL_FILE = DATA_DIR / "journal.json"
 
 

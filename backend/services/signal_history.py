@@ -3,11 +3,8 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
-
 import yfinance as yf
-
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+from backend.config import DATA_DIR
 HISTORY_FILE = DATA_DIR / "signal_history.json"
 MAX_RECORDS = 500
 

@@ -6,16 +6,13 @@ import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
-from pathlib import Path
-
 import pandas as pd
 import yfinance as yf
 
 from backend.services.stock_data import get_quote, get_history
+from backend.config import DATA_DIR
 
 logger = logging.getLogger(__name__)
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
 
 
 def _load_sp500_tickers() -> list[str]:

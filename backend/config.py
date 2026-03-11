@@ -1,7 +1,13 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Data directory — use /tmp on Vercel (serverless has no persistent filesystem)
+_is_vercel = bool(os.environ.get("VERCEL", ""))
+DATA_DIR: Path = Path("/tmp/data") if _is_vercel else Path(__file__).parent.parent / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 PERPLEXITY_API_KEY: str = os.getenv("PERPLEXITY_API_KEY", "")

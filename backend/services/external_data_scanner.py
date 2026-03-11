@@ -3,12 +3,10 @@
 import json
 import pandas as pd
 import yfinance as yf
-from pathlib import Path
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from backend.services.stock_data import get_quote
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 
 
 def _load_sp500_tickers() -> list[str]:

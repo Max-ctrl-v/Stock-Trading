@@ -1,15 +1,12 @@
 import json
 import time
 import uuid
-from pathlib import Path
 from typing import Optional
 
 import httpx
 from pydantic import BaseModel
 
-from backend.config import PERPLEXITY_API_KEY
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import PERPLEXITY_API_KEY, DATA_DIR
 NEWS_ALERTS_FILE = DATA_DIR / "news_alerts.json"
 
 PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions"

@@ -1,12 +1,10 @@
 import json
 import uuid
-from pathlib import Path
 from datetime import datetime
 
 import yfinance as yf
 from pydantic import BaseModel
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 TEMPLATES_FILE = DATA_DIR / "trade_templates.json"
 
 

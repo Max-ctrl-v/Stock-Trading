@@ -2,7 +2,9 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-DATA_FILE = Path(__file__).parent.parent.parent / "data" / "portfolio.json"
+from backend.config import DATA_DIR
+
+DATA_FILE = DATA_DIR / "portfolio.json"
 
 
 def _load() -> dict:

@@ -1,14 +1,11 @@
 import json
 import time
 import asyncio
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from backend.services.stock_data import get_quote, get_history
 from backend.services.technical import compute_indicators
 from backend.services.signals import generate_signal
-from backend.config import SCREENER_CACHE_TTL
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import SCREENER_CACHE_TTL, DATA_DIR
 SP500_FILE = DATA_DIR / "sp500_tickers.json"
 RESULTS_FILE = DATA_DIR / "screener_results.json"
 

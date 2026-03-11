@@ -1,12 +1,10 @@
 import json
 import uuid
-from pathlib import Path
 from datetime import datetime
 from pydantic import BaseModel
 
 import yfinance as yf
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 PAPER_TRADES_FILE = DATA_DIR / "paper_trades.json"
 DEFAULT_BALANCE = 100_000.0
 

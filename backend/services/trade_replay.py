@@ -1,13 +1,10 @@
 import json
 from datetime import datetime
-from pathlib import Path
-
 import pandas as pd
 import ta
 import yfinance as yf
 from pydantic import BaseModel
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 JOURNAL_FILE = DATA_DIR / "journal.json"
 
 

@@ -1,9 +1,7 @@
 import json
 import yfinance as yf
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 
 
 def _get_portfolio_tickers() -> list[str]:

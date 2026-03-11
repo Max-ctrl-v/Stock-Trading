@@ -1,11 +1,9 @@
 import json
 import uuid
-from pathlib import Path
 from datetime import datetime
 
 from pydantic import BaseModel
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 MULTI_LEG_FILE = DATA_DIR / "multi_leg_trades.json"
 
 

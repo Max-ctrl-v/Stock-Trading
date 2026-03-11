@@ -1,9 +1,6 @@
 import json
 import os
-from pathlib import Path
-from backend.config import RSI_OVERSOLD, RSI_OVERBOUGHT
-
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+from backend.config import RSI_OVERSOLD, RSI_OVERBOUGHT, DATA_DIR
 THRESHOLDS_FILE = DATA_DIR / "custom_thresholds.json"
 
 DEFAULT_SIGNAL_SCORE_THRESHOLD: float = 10.0

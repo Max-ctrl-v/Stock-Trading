@@ -1,15 +1,12 @@
 import json
 import time
-from pathlib import Path
 from typing import Optional
 
 import httpx
 import openai
 from pydantic import BaseModel
 
-from backend.config import OPENAI_API_KEY, PERPLEXITY_API_KEY
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import OPENAI_API_KEY, PERPLEXITY_API_KEY, DATA_DIR
 PORTFOLIO_FILE = DATA_DIR / "portfolio.json"
 
 PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions"

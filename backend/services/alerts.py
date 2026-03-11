@@ -1,10 +1,8 @@
 import json
 import uuid
 import time
-from pathlib import Path
+from backend.config import DATA_DIR
 from backend.services.stock_data import get_quote
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
 ALERTS_FILE = DATA_DIR / "alerts.json"
 
 

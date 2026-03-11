@@ -1,9 +1,11 @@
 import os
+import time
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pathlib import Path
 
 from backend.routers import (
@@ -22,8 +24,23 @@ from backend.routers import (
 from backend.routers import auth as auth_router
 from backend.middleware.auth import AuthMiddleware
 
-# Disable docs in production (Vercel)
-is_production = os.environ.get("VERCEL", "")
+# Detect environment
+is_vercel = bool(os.environ.get("VERCEL", ""))
+is_railway = bool(os.environ.get("RAILWAY_ENVIRONMENT", ""))
+is_production = is_vercel or is_railway
+
+# On Vercel: copy static data files to /tmp so they're accessible
+if is_vercel:
+    import shutil
+    src_data = Path(__file__).parent.parent / "data"
+    dst_data = Path("/tmp/data")
+    dst_data.mkdir(parents=True, exist_ok=True)
+    for f in ["sp500_tickers.json"]:
+        src = src_data / f
+        dst = dst_data / f
+        if src.exists() and not dst.exists():
+            shutil.copy2(src, dst)
+
 app = FastAPI(
     title="Stock Analysis Tool",
     version="1.0.0",
@@ -32,12 +49,20 @@ app = FastAPI(
     openapi_url=None if is_production else "/openapi.json",
 )
 
+# GZIP compression for faster responses
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 # CORS — restrict to known origins
 ALLOWED_ORIGINS = [
     "http://localhost:1001",
     "http://127.0.0.1:1001",
     "https://stock-trading-seven.vercel.app",
 ]
+# Add Railway URL if set
+railway_url = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+if railway_url:
+    ALLOWED_ORIGINS.append(f"https://{railway_url}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -50,14 +75,23 @@ app.add_middleware(
 app.add_middleware(AuthMiddleware)
 
 
-# Security headers middleware
+# Security headers + request timing middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
+    start = time.time()
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-Response-Time"] = f"{(time.time() - start)*1000:.0f}ms"
     return response
+
+
+# Health check (public, no auth needed)
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "environment": "railway" if is_railway else "vercel" if is_vercel else "local"}
+
 
 # Auth router (public — no token needed for login)
 app.include_router(auth_router.router, prefix="/api/auth", tags=["auth"])

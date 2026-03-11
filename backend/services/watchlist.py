@@ -1,13 +1,11 @@
 import json
 import time
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from backend.services.stock_data import get_quote
 from backend.services.technical import compute_indicators
 from backend.services.stock_data import get_history
 from backend.services.signals import generate_signal
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 WATCHLIST_FILE = DATA_DIR / "watchlist.json"
 
 

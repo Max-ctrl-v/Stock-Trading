@@ -7,13 +7,10 @@ across S&P 500 stocks using yfinance data.
 
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
-
 import pandas as pd
 
 from backend.services.stock_data import get_quote, get_history
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 
 
 def _load_default_tickers() -> list[str]:

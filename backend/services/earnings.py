@@ -1,11 +1,9 @@
 import json
 import yfinance as yf
-from pathlib import Path
 from datetime import datetime, date
 from concurrent.futures import ThreadPoolExecutor
 from pydantic import BaseModel
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
+from backend.config import DATA_DIR
 
 
 class EarningsInfo(BaseModel):
