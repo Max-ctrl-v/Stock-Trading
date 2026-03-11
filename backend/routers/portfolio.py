@@ -2,37 +2,15 @@ from fastapi import APIRouter, HTTPException
 import logging
 from backend.services.portfolio import (
     get_positions, add_position, remove_position,
-    get_settings, update_settings, _load,
+    get_settings, update_settings, _load, save_portfolio_snapshot, get_portfolio_history,
 )
-from backend.services.stock_data import get_quote
+from backend.services.stock_data import get_quote, get_usd_to_eur
 from backend.models.schemas import (
     PortfolioSummary, PortfolioHolding, PortfolioGroup, PortfolioPosition, Settings,
 )
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-_eur_rate_cache: dict = {}
-
-
-def _get_usd_to_eur() -> float:
-    """Get USD to EUR conversion rate, cached 10 min."""
-    import time
-    if _eur_rate_cache.get("ts") and time.time() - _eur_rate_cache["ts"] < 600:
-        return _eur_rate_cache["rate"]
-    try:
-        import yfinance as yf
-        t = yf.Ticker("EURUSD=X")
-        h = t.history(period="1d")
-        if len(h) > 0:
-            eur_usd = float(h["Close"].iloc[-1])
-            rate = 1.0 / eur_usd  # USD -> EUR
-            _eur_rate_cache["rate"] = rate
-            _eur_rate_cache["ts"] = time.time()
-            return rate
-    except Exception:
-        pass
-    return 0.92  # fallback
 
 
 def _fetch_etoro_api_data() -> dict | None:
@@ -114,7 +92,7 @@ async def get_portfolio():
     total_value = 0
     total_cost = 0
     total_pnl_sum = 0
-    usd_to_eur = _get_usd_to_eur()
+    usd_to_eur = get_usd_to_eur()
 
     # Fetch fresh data from eToro API (cached 2 min)
     etoro_data = _fetch_etoro_api_data()
@@ -220,6 +198,12 @@ async def get_portfolio():
             positions=pos_list,
         ))
 
+    # Save a history snapshot (fire-and-forget — never fail the main response)
+    try:
+        save_portfolio_snapshot(round(total_value, 2), total_pnl_eur, total_pnl_pct)
+    except Exception:
+        pass
+
     return PortfolioSummary(
         total_value=round(total_value, 2),
         total_cost=round(total_cost, 2),
@@ -228,6 +212,12 @@ async def get_portfolio():
         holdings=holdings,
         groups=groups,
     )
+
+
+@router.get("/history")
+async def get_portfolio_value_history():
+    """Return portfolio value history for the P&L chart."""
+    return {"history": get_portfolio_history()}
 
 
 @router.post("/add")

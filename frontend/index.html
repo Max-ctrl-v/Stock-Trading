@@ -295,7 +295,7 @@
     <!-- ===== SETTINGS PANEL ===== -->
     <div x-show="showSettings" x-transition class="mb-6 p-5 rounded-xl bg-surface-raised shadow-card animate-fade-in">
       <h3 class="text-sm font-display font-semibold text-gray-400 mb-4 uppercase tracking-wide">Settings</h3>
-      <div class="flex gap-4 flex-wrap">
+      <div class="flex gap-4 flex-wrap mb-4">
         <div>
           <label class="block text-xs text-gray-500 mb-1">Account Size ($)</label>
           <input type="number" x-model.number="settings.account_size"
@@ -307,6 +307,28 @@
           <input type="number" step="0.5" x-model.number="settings.risk_pct"
                  @change="saveSettings()"
                  class="w-28 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none">
+        </div>
+      </div>
+      <!-- Telegram notifications -->
+      <div class="border-t border-gray-700/50 pt-4">
+        <p class="text-xs text-gray-500 mb-3 font-semibold uppercase tracking-wide">Telegram Alerts</p>
+        <div class="flex gap-3 flex-wrap items-end">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Bot Token</label>
+            <input type="password" x-model="telegramConfig.bot_token" placeholder="123456:ABC-..."
+                   class="w-52 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Chat ID</label>
+            <input type="text" x-model="telegramConfig.chat_id" placeholder="-1001234567"
+                   class="w-36 px-3 py-2 rounded-lg bg-surface-elevated border border-gray-700 text-white text-sm focus:border-brand-500 focus:outline-none">
+          </div>
+          <button @click="saveTelegramConfig()"
+                  class="px-3 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium active:scale-95">Save</button>
+          <button @click="testTelegram()"
+                  class="px-3 py-2 rounded-lg bg-surface-elevated hover:bg-surface-floating text-gray-300 text-sm font-medium active:scale-95">Test</button>
+          <span x-show="telegramStatus" class="text-xs" :class="telegramStatus === 'ok' ? 'text-success-400' : 'text-danger-400'"
+                x-text="telegramStatus === 'ok' ? '✓ Connected' : '✗ ' + telegramStatus"></span>
         </div>
       </div>
     </div>
@@ -491,8 +513,26 @@
             <div class="text-right">
               <p class="text-sm text-gray-400">Confidence</p>
               <p class="text-lg font-bold font-mono text-white" x-text="data.signal.confidence.toFixed(0) + '%'"></p>
+              <!-- Signal accuracy for this ticker -->
+              <p x-show="signalAccuracy && signalAccuracy.resolved > 0" class="text-xs text-gray-500 mt-0.5"
+                 x-text="signalAccuracy ? signalAccuracy.accuracy_pct.toFixed(0) + '% accurate (' + signalAccuracy.resolved + ' signals)' : ''"></p>
             </div>
           </div>
+          <!-- Warnings: earnings proximity and MTF conflict -->
+          <template x-if="data.multi_timeframe && (data.multi_timeframe.earnings_warning || data.multi_timeframe.warning)">
+            <div class="mb-3 flex flex-col gap-1">
+              <template x-if="data.multi_timeframe.earnings_warning">
+                <div class="flex items-center gap-2 text-xs text-warn-400 bg-warn-400/10 rounded-lg px-3 py-1.5">
+                  <span>⚠</span><span x-text="data.multi_timeframe.earnings_warning"></span>
+                </div>
+              </template>
+              <template x-if="data.multi_timeframe.warning">
+                <div class="flex items-center gap-2 text-xs text-warn-400 bg-warn-400/10 rounded-lg px-3 py-1.5">
+                  <span>⚡</span><span x-text="data.multi_timeframe.warning"></span>
+                </div>
+              </template>
+            </div>
+          </template>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             <div>
               <p class="text-gray-500 text-xs mb-1">Entry</p>
@@ -1863,6 +1903,9 @@
         activeTab: 'dashboard',
         showSettings: false,
         settings: { account_size: 10000, risk_pct: 2.5 },
+        telegramConfig: { bot_token: '', chat_id: '' },
+        telegramStatus: null,
+        signalAccuracy: null,
         chart: null,
         // Chart state
         chartTimeframe: '3M',
@@ -2188,6 +2231,52 @@
             const res = await fetch('/api/portfolio/settings');
             if (res.ok) this.settings = await res.json();
           } catch(e) {}
+          // Load Telegram status
+          try {
+            const r = await fetch('/api/telegram/status');
+            if (r.ok) {
+              const d = await r.json();
+              if (d.configured) this.telegramStatus = 'ok';
+            }
+          } catch(e) {}
+        },
+
+        async saveTelegramConfig() {
+          try {
+            const r = await fetch('/api/telegram/config', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.telegramConfig),
+            });
+            if (r.ok) {
+              this.telegramStatus = 'ok';
+              showToast('Telegram configured', 'success');
+            }
+          } catch(e) { showToast('Failed to save Telegram config', 'error'); }
+        },
+
+        async testTelegram() {
+          try {
+            const r = await fetch('/api/telegram/test', { method: 'POST' });
+            const d = await r.json();
+            if (d.ok) {
+              this.telegramStatus = 'ok';
+              showToast('Telegram test message sent!', 'success');
+            } else {
+              this.telegramStatus = d.error || 'failed';
+              showToast('Telegram test failed: ' + (d.error || 'unknown error'), 'error');
+            }
+          } catch(e) { showToast('Telegram test failed', 'error'); }
+        },
+
+        async fetchSignalAccuracy(ticker) {
+          try {
+            const r = await fetch(`/api/signals/accuracy?ticker=${ticker}`);
+            if (r.ok) {
+              const d = await r.json();
+              this.signalAccuracy = d;
+            }
+          } catch(e) { this.signalAccuracy = null; }
         },
 
         async saveSettings() {
@@ -2235,6 +2324,7 @@
             this.data = await signalRes.json();
             if (newsRes.ok) this.newsData = await newsRes.json();
 
+            this.fetchSignalAccuracy(ticker);
             this.$nextTick(() => this.fetchChartData(this.chartTimeframe));
             document.title = `${ticker} - Stock Analysis`;
           } catch(e) {
@@ -2334,6 +2424,25 @@
               pointRadius: 0,
               fill: false,
             });
+          }
+
+          // Entry price line — show avg_cost if this ticker is in portfolio
+          if (this.portfolio && this.portfolio.groups && this.data && this.data.quote) {
+            const pg = this.portfolio.groups.find(g => g.ticker === this.data.quote.ticker);
+            if (pg && pg.avg_cost > 0) {
+              const entryY = pg.avg_cost;
+              const entryColor = 'rgba(251,191,36,0.85)';
+              priceDatasets.push({
+                label: `Entry ${pg.ticker}`,
+                type: 'line',
+                data: timestamps.map(t => ({ x: t, y: entryY })),
+                borderColor: entryColor,
+                borderWidth: 1.5,
+                borderDash: [6, 4],
+                pointRadius: 0,
+                fill: false,
+              });
+            }
           }
 
           // Price chart (candlestick)
@@ -2758,7 +2867,7 @@
           this.riskLoading = true;
           const endpointMap = {
             allocation: 'allocation', correlation: 'correlation', beta: 'beta',
-            pnlHistory: 'pnl-history', dividends: 'dividends', taxLots: 'tax-lots',
+            pnlHistory: null, dividends: 'dividends', taxLots: 'tax-lots',
             aging: 'aging', rebalance: 'rebalance', exposure: 'exposure', pnlBreakdown: 'pnl-breakdown',
           };
           const dataKeyMap = {
@@ -2767,7 +2876,8 @@
             aging: 'agingData', rebalance: 'rebalanceData', exposure: 'exposureData', pnlBreakdown: 'pnlBreakdownData',
           };
           try {
-            const res = await fetch(`/api/portfolio/analytics/${endpointMap[tab]}`);
+            const url = tab === 'pnlHistory' ? '/api/portfolio/history' : `/api/portfolio/analytics/${endpointMap[tab]}`;
+            const res = await fetch(url);
             if (!res.ok) throw new Error('Failed to load');
             const data = await res.json();
             this[dataKeyMap[tab]] = data;
@@ -2807,27 +2917,44 @@
         renderPnlHistoryChart() {
           if (this._pnlHistoryChart) { this._pnlHistoryChart.destroy(); this._pnlHistoryChart = null; }
           const canvas = document.getElementById('pnlHistoryCanvas');
-          if (!canvas || !this.pnlHistoryData?.snapshots) return;
-          const dates = this.pnlHistoryData.snapshots.map(s => s.date);
-          const values = this.pnlHistoryData.snapshots.map(s => s.total_pnl);
-          const lastVal = values[values.length - 1] || 0;
+          const history = this.pnlHistoryData?.history;
+          if (!canvas || !history || history.length === 0) {
+            if (canvas) {
+              const ctx = canvas.getContext('2d');
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.fillStyle = '#6b7280';
+              ctx.font = '13px Inter';
+              ctx.textAlign = 'center';
+              ctx.fillText('No history yet — P&L is tracked each time you load the Portfolio tab', canvas.width / 2, 120);
+            }
+            return;
+          }
+          const dates = history.map(s => s.timestamp.slice(0, 16).replace('T', ' '));
+          const pnlValues = history.map(s => s.total_pnl);
+          const valueValues = history.map(s => s.total_value);
+          const lastPnl = pnlValues[pnlValues.length - 1] || 0;
           this._pnlHistoryChart = new Chart(canvas, {
             type: 'line',
-            data: { labels: dates, datasets: [{
-              label: 'P&L', data: values,
-              borderColor: lastVal >= 0 ? '#22c55e' : '#ef4444',
-              backgroundColor: lastVal >= 0 ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
-              fill: true, tension: 0.3, pointRadius: 0, pointHitRadius: 8, borderWidth: 2,
-            }] },
+            data: { labels: dates, datasets: [
+              { label: 'P&L (€)', data: pnlValues, yAxisID: 'y',
+                borderColor: lastPnl >= 0 ? '#22c55e' : '#ef4444',
+                backgroundColor: lastPnl >= 0 ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.08)',
+                fill: true, tension: 0.3, pointRadius: 0, pointHitRadius: 8, borderWidth: 2 },
+              { label: 'Total Value (€)', data: valueValues, yAxisID: 'y2',
+                borderColor: 'rgba(14,150,104,0.6)', backgroundColor: 'transparent',
+                fill: false, tension: 0.3, pointRadius: 0, borderWidth: 1.5, borderDash: [4,3] },
+            ] },
             options: {
               responsive: true, maintainAspectRatio: false,
               interaction: { intersect: false, mode: 'index' },
               scales: {
                 x: { ticks: { color: '#6b7280', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
-                y: { ticks: { color: '#6b7280', font: { family: 'JetBrains Mono', size: 10 }, callback: v => (v >= 0 ? '+$' : '-$') + Math.abs(v).toLocaleString() }, grid: { color: 'rgba(255,255,255,0.04)' } }
+                y: { position: 'left', ticks: { color: '#6b7280', font: { family: 'JetBrains Mono', size: 10 }, callback: v => (v >= 0 ? '+€' : '-€') + Math.abs(v).toLocaleString() }, grid: { color: 'rgba(255,255,255,0.04)' } },
+                y2: { position: 'right', grid: { display: false }, ticks: { color: '#6b7280', font: { family: 'JetBrains Mono', size: 10 }, callback: v => '€' + v.toLocaleString() } },
               },
-              plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a2234', titleColor: '#fff', bodyColor: '#d1d5db', bodyFont: { family: 'JetBrains Mono' },
-                callbacks: { label: ctx => ` P&L: ${ctx.raw >= 0 ? '+' : ''}$${ctx.raw.toFixed(2)}` } } }
+              plugins: { legend: { display: true, labels: { color: '#9ca3af', font: { size: 10 }, boxWidth: 10 } },
+                tooltip: { backgroundColor: '#1a2234', titleColor: '#fff', bodyColor: '#d1d5db', bodyFont: { family: 'JetBrains Mono' },
+                  callbacks: { label: ctx => ctx.dataset.label + ': ' + (ctx.raw >= 0 ? '+' : '') + '€' + ctx.raw.toFixed(2) } } }
             }
           });
         },

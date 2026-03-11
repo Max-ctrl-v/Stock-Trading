@@ -1,5 +1,7 @@
 import os
 import time
+import asyncio
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +9,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 from backend.routers import (
     stocks, analysis, signals, portfolio, news, etoro, watchlist, screener,
@@ -22,7 +25,53 @@ from backend.routers import (
     recommendations, sell_signals,
 )
 from backend.routers import auth as auth_router
+from backend.routers import telegram as telegram_router
 from backend.middleware.auth import AuthMiddleware
+
+logger = logging.getLogger(__name__)
+
+
+async def _background_etoro_sync():
+    """Auto-sync eToro portfolio every 5 minutes."""
+    from backend.services.etoro import sync_portfolio
+    from backend.services.portfolio import _load, _save
+    while True:
+        await asyncio.sleep(300)  # 5 minutes
+        try:
+            result = sync_portfolio()
+            if result.get("positions"):
+                data = _load()
+                data["positions"] = result["positions"]
+                _save(data)
+                logger.info("eToro auto-sync: %d positions updated", len(result["positions"]))
+        except Exception as e:
+            logger.warning("eToro auto-sync failed: %s", e)
+
+
+async def _background_signal_evaluation():
+    """Evaluate pending signal outcomes every hour."""
+    from backend.services.signal_history import evaluate_signals
+    while True:
+        await asyncio.sleep(3600)  # 1 hour
+        try:
+            stats = evaluate_signals()
+            logger.info("Signal eval: %s correct, %s incorrect, accuracy=%.1f%%",
+                        stats["correct"], stats["incorrect"], stats["accuracy_pct"])
+        except Exception as e:
+            logger.warning("Signal evaluation failed: %s", e)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start background tasks on Railway (persistent server only)
+    tasks = []
+    if bool(os.environ.get("RAILWAY_ENVIRONMENT", "")):
+        tasks.append(asyncio.create_task(_background_etoro_sync()))
+        tasks.append(asyncio.create_task(_background_signal_evaluation()))
+        logger.info("Background tasks started: eToro auto-sync, signal evaluation")
+    yield
+    for t in tasks:
+        t.cancel()
 
 # Detect environment
 is_vercel = bool(os.environ.get("VERCEL", ""))
@@ -44,6 +93,7 @@ if is_vercel:
 app = FastAPI(
     title="Stock Analysis Tool",
     version="1.0.0",
+    lifespan=lifespan,
     docs_url=None if is_production else "/docs",
     redoc_url=None if is_production else "/redoc",
     openapi_url=None if is_production else "/openapi.json",
@@ -136,6 +186,9 @@ app.include_router(news_alerts.router, prefix="/api/news-alerts", tags=["news-al
 # Recommendations & Sell Signals
 app.include_router(recommendations.router, prefix="/api/recommendations", tags=["recommendations"])
 app.include_router(sell_signals.router, prefix="/api/sell-signals", tags=["sell-signals"])
+
+# Telegram notifications
+app.include_router(telegram_router.router, prefix="/api/telegram", tags=["telegram"])
 
 # Serve frontend
 frontend_dir = Path(__file__).parent.parent / "frontend"

@@ -17,87 +17,114 @@ def generate_signal(indicators: dict, quote: dict, custom_thresholds: dict | Non
         rsi_overbought = custom_thresholds.get("rsi_overbought", RSI_OVERBOUGHT)
         score_threshold = custom_thresholds.get("signal_score_threshold", 10)
 
+    # --- Detect market regime via ADX for adaptive weights ---
+    adx_val = indicators.get("adx") or 0
+    # trending: ADX > 25 — weight trend-following indicators (MAs, MACD) more
+    # ranging: ADX < 20 — weight mean-reversion indicators (RSI, BB) more
+    if adx_val > 25:
+        w_rsi, w_macd, w_bb, w_ma = 15, 30, 15, 30
+    elif adx_val < 20:
+        w_rsi, w_macd, w_bb, w_ma = 30, 15, 30, 15
+    else:
+        w_rsi, w_macd, w_bb, w_ma = 25, 25, 20, 20
+
     score = 0  # positive = bullish, negative = bearish
     weights = []
 
-    # RSI signal (weight: 25)
+    # RSI signal (adaptive weight)
     rsi = indicators.get("rsi")
     if rsi is not None:
         if rsi < rsi_oversold:
-            s = 25 * (rsi_oversold - rsi) / rsi_oversold
+            s = w_rsi * (rsi_oversold - rsi) / rsi_oversold
             weights.append(("RSI oversold", s))
             score += s
         elif rsi > rsi_overbought:
-            s = -25 * (rsi - rsi_overbought) / (100 - rsi_overbought)
+            s = -w_rsi * (rsi - rsi_overbought) / (100 - rsi_overbought)
             weights.append(("RSI overbought", s))
             score += s
 
-    # MACD signal (weight: 25)
+    # MACD signal (adaptive weight)
     macd_hist = indicators.get("macd_histogram")
     macd_line = indicators.get("macd_line")
-    macd_signal = indicators.get("macd_signal")
-    if macd_line is not None and macd_signal is not None:
-        if macd_line > macd_signal:
-            s = min(15, abs(macd_line - macd_signal) / price * 5000)
+    macd_signal_val = indicators.get("macd_signal")
+    if macd_line is not None and macd_signal_val is not None:
+        if macd_line > macd_signal_val:
+            s = min(w_macd * 0.6, abs(macd_line - macd_signal_val) / price * 5000)
             weights.append(("MACD bullish crossover", s))
             score += s
         else:
-            s = -min(15, abs(macd_line - macd_signal) / price * 5000)
+            s = -min(w_macd * 0.6, abs(macd_line - macd_signal_val) / price * 5000)
             weights.append(("MACD bearish crossover", s))
             score += s
     if macd_hist is not None:
+        hist_contrib = w_macd * 0.4
         if macd_hist > 0:
-            score += 10
-            weights.append(("MACD histogram positive", 10))
+            score += hist_contrib
+            weights.append(("MACD histogram positive", hist_contrib))
         else:
-            score -= 10
-            weights.append(("MACD histogram negative", -10))
+            score -= hist_contrib
+            weights.append(("MACD histogram negative", -hist_contrib))
 
-    # Bollinger Bands signal (weight: 20)
+    # Bollinger Bands signal (adaptive weight)
     bb_lower = indicators.get("bb_lower")
     bb_upper = indicators.get("bb_upper")
     bb_middle = indicators.get("bb_middle")
     if bb_lower is not None and bb_upper is not None:
         if price <= bb_lower:
-            score += 20
-            weights.append(("Price at lower BB", 20))
+            score += w_bb
+            weights.append(("Price at lower BB", w_bb))
         elif price >= bb_upper:
-            score -= 20
-            weights.append(("Price at upper BB", -20))
+            score -= w_bb
+            weights.append(("Price at upper BB", -w_bb))
         elif bb_middle is not None:
+            nudge = w_bb * 0.25
             if price > bb_middle:
-                score += 5
+                score += nudge
             else:
-                score -= 5
+                score -= nudge
 
-    # Moving average trend (weight: 20)
+    # Moving average trend (adaptive weight)
     sma_20 = indicators.get("sma_20")
     sma_50 = indicators.get("sma_50")
     ema_12 = indicators.get("ema_12")
     ema_26 = indicators.get("ema_26")
+    half_ma = w_ma // 2
     if sma_20 is not None and sma_50 is not None:
         if sma_20 > sma_50:
-            score += 10
-            weights.append(("SMA 20 > 50 (uptrend)", 10))
+            score += half_ma
+            weights.append(("SMA 20 > 50 (uptrend)", half_ma))
         else:
-            score -= 10
-            weights.append(("SMA 20 < 50 (downtrend)", -10))
+            score -= half_ma
+            weights.append(("SMA 20 < 50 (downtrend)", -half_ma))
     if ema_12 is not None and ema_26 is not None:
         if ema_12 > ema_26:
-            score += 10
-            weights.append(("EMA 12 > 26 (bullish)", 10))
+            score += half_ma
+            weights.append(("EMA 12 > 26 (bullish)", half_ma))
         else:
-            score -= 10
-            weights.append(("EMA 12 < 26 (bearish)", -10))
+            score -= half_ma
+            weights.append(("EMA 12 < 26 (bearish)", -half_ma))
 
-    # Volume confirmation (weight: 10)
+    # Volume confirmation + penalty
     vol_sma = indicators.get("volume_sma")
     volume = quote.get("volume", 0)
+    vol_multiplier = 1.0
     if vol_sma and vol_sma > 0 and volume > 0:
-        if volume > vol_sma * 1.5:
+        vol_ratio = volume / vol_sma
+        if vol_ratio > 1.5:
             bonus = 10 if score > 0 else -10  # confirms the direction
             score += bonus
             weights.append(("High volume confirmation", bonus))
+        elif vol_ratio < 0.5:
+            # Very low volume — unreliable signal, reduce score
+            vol_multiplier = 0.6
+            weights.append(("Low volume warning (signal weakened)", 0))
+        elif vol_ratio < 0.8:
+            vol_multiplier = 0.8
+            weights.append(("Below-avg volume (signal reduced)", 0))
+
+    # Apply volume multiplier to score
+    if vol_multiplier < 1.0:
+        score = score * vol_multiplier
 
     # --- NEW INDICATORS ---
 
@@ -277,7 +304,8 @@ def get_multi_timeframe_confirmation(ticker: str) -> dict:
             result["aligned"] = True
             result["alignment_bonus"] = 15.0
         elif d_dir != "HOLD" and w_dir != "HOLD" and d_dir != w_dir:
-            result["alignment_bonus"] = -10.0  # conflicting signals
+            result["alignment_bonus"] = -10.0  # conflicting timeframes
+            result["conflict"] = True  # enforce confidence cap in router
 
     return result
 

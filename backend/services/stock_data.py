@@ -1,6 +1,7 @@
 import time
 import yfinance as yf
 import pandas as pd
+import httpx
 from backend.config import QUOTE_CACHE_TTL, HISTORY_CACHE_TTL
 
 # In-memory cache: {key: (data, timestamp)}
@@ -55,6 +56,40 @@ def get_quote(ticker: str) -> dict:
 
     _set_cached(cache_key, quote)
     return quote
+
+
+def get_usd_to_eur() -> float:
+    """Get USD→EUR rate. Tries ECB open API first, falls back to yfinance."""
+    cache_key = "forex:usd_eur"
+    cached = _get_cached(cache_key, 600)  # 10-min cache
+    if cached is not None:
+        return cached
+
+    # Primary: ECB / exchangerate-api (free, no key)
+    try:
+        r = httpx.get("https://open.er-api.com/v6/latest/USD", timeout=5.0)
+        if r.status_code == 200:
+            data = r.json()
+            rate = data.get("rates", {}).get("EUR")
+            if rate and rate > 0:
+                _set_cached(cache_key, float(rate))
+                return float(rate)
+    except Exception:
+        pass
+
+    # Fallback: yfinance EURUSD=X
+    try:
+        t = yf.Ticker("EURUSD=X")
+        h = t.history(period="1d")
+        if len(h) > 0:
+            eur_usd = float(h["Close"].iloc[-1])
+            rate = 1.0 / eur_usd
+            _set_cached(cache_key, rate)
+            return rate
+    except Exception:
+        pass
+
+    return 0.92  # hardcoded fallback
 
 
 def get_history(ticker: str, period: str = "3mo", interval: str = "1d") -> pd.DataFrame:

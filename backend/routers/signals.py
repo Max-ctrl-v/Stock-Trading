@@ -8,6 +8,7 @@ from backend.services.perplexity import get_news_sentiment
 from backend.services.support_resistance import detect_support_resistance, calculate_fibonacci_levels
 from backend.services.signal_history import log_signal
 from backend.services.custom_thresholds import get_thresholds
+from backend.services.earnings import get_earnings
 from backend.models.schemas import (
     SignalResponse, StockQuote, IndicatorValues,
     SignalDirection, PositionSize, AIAnalysis, OHLCV,
@@ -49,10 +50,25 @@ async def get_signal(
         # Multi-timeframe confirmation
         mtf_data = get_multi_timeframe_confirmation(ticker)
 
-        # Apply multi-timeframe alignment bonus to confidence
-        if mtf_data.get("aligned") and signal["direction"] != "HOLD":
-            bonus = mtf_data["alignment_bonus"]
-            signal["confidence"] = min(100, signal["confidence"] + bonus)
+        # Apply MTF alignment bonus OR conflict cap
+        if signal["direction"] != "HOLD":
+            if mtf_data.get("conflict"):
+                # 1D and 1W disagree — cap confidence at 50% (unreliable)
+                signal["confidence"] = min(signal["confidence"], 50)
+                mtf_data["warning"] = "Conflicting timeframes: confidence capped at 50%"
+            elif mtf_data.get("aligned"):
+                signal["confidence"] = min(100, signal["confidence"] + mtf_data["alignment_bonus"])
+
+        # Earnings proximity penalty — risky within 3 days of earnings
+        earnings_warning = None
+        try:
+            earnings_info = get_earnings(ticker)
+            days_until = earnings_info.days_until
+            if days_until is not None and 0 <= days_until <= 3:
+                signal["confidence"] = max(0, signal["confidence"] - 20)
+                earnings_warning = f"Earnings in {days_until} day(s) — high risk, confidence reduced"
+        except Exception:
+            pass
 
         # Get news for context
         news_data = get_news_sentiment(ticker)
@@ -94,6 +110,10 @@ async def get_signal(
             )
         except Exception:
             pass  # Don't fail the signal if logging fails
+
+        # Attach earnings warning to mtf_data for frontend display
+        if earnings_warning:
+            mtf_data["earnings_warning"] = earnings_warning
 
         return SignalResponse(
             ticker=ticker.upper(),

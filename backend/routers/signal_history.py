@@ -36,6 +36,16 @@ async def trigger_evaluation() -> dict:
     return evaluate_signals()
 
 
+@router.get("/accuracy")
+async def get_accuracy(
+    ticker: str = Query(None, description="Filter by ticker symbol"),
+) -> dict:
+    """Get signal accuracy stats — called by frontend after each analysis."""
+    stats = get_accuracy_stats(ticker=ticker)
+    stats["resolved"] = stats["correct"] + stats["incorrect"]
+    return stats
+
+
 @router.delete("/history/{signal_id}")
 async def delete_signal(signal_id: str) -> dict:
     """Delete a specific signal record by ID."""

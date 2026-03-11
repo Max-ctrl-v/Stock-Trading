@@ -5,6 +5,8 @@ from datetime import datetime
 from backend.config import DATA_DIR
 
 DATA_FILE = DATA_DIR / "portfolio.json"
+HISTORY_FILE = DATA_DIR / "portfolio_history.json"
+HISTORY_MAX = 365  # keep ~1 year of daily snapshots
 
 
 def _load() -> dict:
@@ -57,6 +59,43 @@ def remove_position(ticker: str) -> bool:
         _save(data)
         return True
     return False
+
+
+def save_portfolio_snapshot(total_value: float, total_pnl: float, total_pnl_pct: float) -> None:
+    """Append a timestamped snapshot of portfolio value. One snapshot per hour max."""
+    history = get_portfolio_history()
+    now = datetime.now()
+    now_str = now.strftime("%Y-%m-%dT%H:00:00")  # round to hour
+
+    # Don't duplicate within the same hour
+    if history and history[-1]["timestamp"][:13] == now_str[:13]:
+        return
+
+    history.append({
+        "timestamp": now.isoformat(),
+        "total_value": total_value,
+        "total_pnl": total_pnl,
+        "total_pnl_pct": total_pnl_pct,
+    })
+
+    # Keep only last HISTORY_MAX records
+    if len(history) > HISTORY_MAX:
+        history = history[-HISTORY_MAX:]
+
+    HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f)
+
+
+def get_portfolio_history() -> list[dict]:
+    """Return portfolio value history records."""
+    if not HISTORY_FILE.exists():
+        return []
+    try:
+        with open(HISTORY_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return []
 
 
 def get_settings() -> dict:
