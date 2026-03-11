@@ -90,7 +90,7 @@ async def add_security_headers(request: Request, call_next):
 # Health check (public, no auth needed)
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "environment": "railway" if is_railway else "vercel" if is_vercel else "local"}
+    return {"status": "ok", "environment": "railway" if is_railway else "vercel" if is_vercel else "local", "version": "v2-etoro-pnl"}
 
 
 # Auth router (public — no token needed for login)
